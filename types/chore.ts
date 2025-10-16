@@ -4,6 +4,7 @@ export interface Chore {
   name: string;
   timesPerWeek: number;
   createdAt: number;
+  points?: number;
 }
 
 export interface Person {
@@ -11,6 +12,8 @@ export interface Person {
   name: string;
   createdAt: number;
   isAdmin?: boolean;
+  weeklyPoints?: number;
+  yearlyPoints?: number;
 }
 
 export interface Assignment {
@@ -21,6 +24,8 @@ export interface Assignment {
   year: number;
   completed: boolean;
   assignedAt: number;
+  completedAt?: number;
+  points?: number;
 }
 
 export interface User {
@@ -30,4 +35,13 @@ export interface User {
   personId: string;
   isAdmin: boolean;
   createdAt: number;
+}
+
+export interface PointsData {
+  personId: string;
+  weekNumber: number;
+  year: number;
+  weeklyPoints: number;
+  yearlyPoints: number;
+  lastUpdated: number;
 }

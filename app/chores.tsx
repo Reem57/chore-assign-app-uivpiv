@@ -25,6 +25,7 @@ export default function ChoresScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [choreName, setChoreName] = useState('');
   const [timesPerWeek, setTimesPerWeek] = useState('1');
+  const [points, setPoints] = useState('10');
 
   // Redirect if not admin
   useEffect(() => {
@@ -46,9 +47,16 @@ export default function ChoresScreen() {
       return;
     }
 
-    addChore(choreName.trim(), times);
+    const pointsValue = parseInt(points, 10);
+    if (isNaN(pointsValue) || pointsValue < 1) {
+      Alert.alert('Error', 'Points must be at least 1');
+      return;
+    }
+
+    addChore(choreName.trim(), times, pointsValue);
     setChoreName('');
     setTimesPerWeek('1');
+    setPoints('10');
     setIsAdding(false);
   };
 
@@ -64,16 +72,24 @@ export default function ChoresScreen() {
       return;
     }
 
-    updateChore(editingId, choreName.trim(), times);
+    const pointsValue = parseInt(points, 10);
+    if (isNaN(pointsValue) || pointsValue < 1) {
+      Alert.alert('Error', 'Points must be at least 1');
+      return;
+    }
+
+    updateChore(editingId, choreName.trim(), times, pointsValue);
     setChoreName('');
     setTimesPerWeek('1');
+    setPoints('10');
     setEditingId(null);
   };
 
-  const handleEdit = (id: string, name: string, times: number) => {
+  const handleEdit = (id: string, name: string, times: number, chorePoints: number) => {
     setEditingId(id);
     setChoreName(name);
     setTimesPerWeek(times.toString());
+    setPoints((chorePoints || 10).toString());
     setIsAdding(false);
   };
 
@@ -95,6 +111,7 @@ export default function ChoresScreen() {
   const handleCancel = () => {
     setChoreName('');
     setTimesPerWeek('1');
+    setPoints('10');
     setIsAdding(false);
     setEditingId(null);
   };
@@ -130,6 +147,14 @@ export default function ChoresScreen() {
           },
           headerTintColor: colors.primary,
           presentation: 'modal',
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <IconSymbol name="chevron.left" color={colors.primary} size={24} />
+            </Pressable>
+          ),
         }}
       />
       <View style={styles.container}>
@@ -174,6 +199,18 @@ export default function ChoresScreen() {
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="number-pad"
                   maxLength={1}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Points per Completion</Text>
+                <TextInput
+                  style={styles.input}
+                  value={points}
+                  onChangeText={setPoints}
+                  placeholder="10"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="number-pad"
                 />
               </View>
 
@@ -224,14 +261,25 @@ export default function ChoresScreen() {
                 <View key={chore.id} style={styles.choreCard}>
                   <View style={styles.choreInfo}>
                     <Text style={styles.choreName}>{chore.name}</Text>
-                    <Text style={styles.choreFrequency}>
-                      {chore.timesPerWeek}x per week
-                    </Text>
+                    <View style={styles.choreDetails}>
+                      <View style={styles.choreDetailItem}>
+                        <IconSymbol name="calendar" color={colors.textSecondary} size={14} />
+                        <Text style={styles.choreFrequency}>
+                          {chore.timesPerWeek}x/week
+                        </Text>
+                      </View>
+                      <View style={styles.choreDetailItem}>
+                        <IconSymbol name="star.fill" color={colors.warning} size={14} />
+                        <Text style={styles.chorePoints}>
+                          {chore.points || 10} pts
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                   <View style={styles.choreActions}>
                     <Pressable
                       style={styles.editButton}
-                      onPress={() => handleEdit(chore.id, chore.name, chore.timesPerWeek)}
+                      onPress={() => handleEdit(chore.id, chore.name, chore.timesPerWeek, chore.points || 10)}
                     >
                       <IconSymbol name="pencil" color={colors.primary} size={20} />
                     </Pressable>
@@ -239,7 +287,7 @@ export default function ChoresScreen() {
                       style={styles.deleteButton}
                       onPress={() => handleDelete(chore.id, chore.name)}
                     >
-                      <IconSymbol name="trash" color="#FF3B30" size={20} />
+                      <IconSymbol name="trash" color={colors.danger} size={20} />
                     </Pressable>
                   </View>
                 </View>
@@ -261,6 +309,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 32,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   header: {
     marginBottom: 24,
@@ -409,11 +461,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  choreDetails: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  choreDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   choreFrequency: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  chorePoints: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   choreActions: {
     flexDirection: 'row',

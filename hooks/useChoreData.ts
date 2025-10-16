@@ -1,17 +1,19 @@
 
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Chore, Person, Assignment } from '@/types/chore';
-import { assignChores } from '@/utils/choreAssignment';
+import { Chore, Person, Assignment, PointsData } from '@/types/chore';
+import { assignChores, getWeekNumber } from '@/utils/choreAssignment';
 
 const CHORES_KEY = '@chores';
 const PEOPLE_KEY = '@people';
 const ASSIGNMENTS_KEY = '@assignments';
+const POINTS_KEY = '@points';
 
 export function useChoreData() {
   const [chores, setChores] = useState<Chore[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [pointsData, setPointsData] = useState<PointsData[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load data from storage
@@ -30,17 +32,26 @@ export function useChoreData() {
     }
   }, [chores, people, loading]);
 
+  // Update points when assignments change
+  useEffect(() => {
+    if (!loading) {
+      updatePoints();
+    }
+  }, [assignments, loading]);
+
   const loadData = async () => {
     try {
-      const [choresData, peopleData, assignmentsData] = await Promise.all([
+      const [choresData, peopleData, assignmentsData, pointsDataStr] = await Promise.all([
         AsyncStorage.getItem(CHORES_KEY),
         AsyncStorage.getItem(PEOPLE_KEY),
         AsyncStorage.getItem(ASSIGNMENTS_KEY),
+        AsyncStorage.getItem(POINTS_KEY),
       ]);
 
       if (choresData) setChores(JSON.parse(choresData));
       if (peopleData) setPeople(JSON.parse(peopleData));
       if (assignmentsData) setAssignments(JSON.parse(assignmentsData));
+      if (pointsDataStr) setPointsData(JSON.parse(pointsDataStr));
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -72,11 +83,78 @@ export function useChoreData() {
     }
   };
 
-  const addChore = (name: string, timesPerWeek: number) => {
+  const savePointsData = async (newPointsData: PointsData[]) => {
+    try {
+      await AsyncStorage.setItem(POINTS_KEY, JSON.stringify(newPointsData));
+    } catch (error) {
+      console.error('Error saving points data:', error);
+    }
+  };
+
+  const updatePoints = () => {
+    const now = new Date();
+    const currentWeek = getWeekNumber(now);
+    const currentYear = now.getFullYear();
+
+    const updatedPointsData: PointsData[] = [];
+
+    people.forEach((person) => {
+      // Get all assignments for this person
+      const personAssignments = assignments.filter((a) => a.personId === person.id);
+
+      // Calculate weekly points (current week only)
+      const weeklyAssignments = personAssignments.filter(
+        (a) => a.weekNumber === currentWeek && a.year === currentYear && a.completed
+      );
+      const weeklyPoints = weeklyAssignments.reduce((sum, a) => {
+        const chore = chores.find((c) => c.id === a.choreId);
+        return sum + (chore?.points || 10);
+      }, 0);
+
+      // Calculate yearly points (all completed assignments this year)
+      const yearlyAssignments = personAssignments.filter(
+        (a) => a.year === currentYear && a.completed
+      );
+      const yearlyPoints = yearlyAssignments.reduce((sum, a) => {
+        const chore = chores.find((c) => c.id === a.choreId);
+        return sum + (chore?.points || 10);
+      }, 0);
+
+      updatedPointsData.push({
+        personId: person.id,
+        weekNumber: currentWeek,
+        year: currentYear,
+        weeklyPoints,
+        yearlyPoints,
+        lastUpdated: Date.now(),
+      });
+    });
+
+    setPointsData(updatedPointsData);
+    savePointsData(updatedPointsData);
+  };
+
+  const getPersonPoints = (personId: string) => {
+    const now = new Date();
+    const currentWeek = getWeekNumber(now);
+    const currentYear = now.getFullYear();
+
+    const personPointsData = pointsData.find(
+      (pd) => pd.personId === personId && pd.weekNumber === currentWeek && pd.year === currentYear
+    );
+
+    return {
+      weeklyPoints: personPointsData?.weeklyPoints || 0,
+      yearlyPoints: personPointsData?.yearlyPoints || 0,
+    };
+  };
+
+  const addChore = (name: string, timesPerWeek: number, points: number = 10) => {
     const newChore: Chore = {
       id: Date.now().toString(),
       name,
       timesPerWeek,
+      points,
       createdAt: Date.now(),
     };
     const updatedChores = [...chores, newChore];
@@ -84,9 +162,9 @@ export function useChoreData() {
     saveChores(updatedChores);
   };
 
-  const updateChore = (id: string, name: string, timesPerWeek: number) => {
+  const updateChore = (id: string, name: string, timesPerWeek: number, points: number = 10) => {
     const updatedChores = chores.map((c) =>
-      c.id === id ? { ...c, name, timesPerWeek } : c
+      c.id === id ? { ...c, name, timesPerWeek, points } : c
     );
     setChores(updatedChores);
     saveChores(updatedChores);
@@ -131,12 +209,25 @@ export function useChoreData() {
     const updatedAssignments = assignments.filter((a) => a.personId !== id);
     setAssignments(updatedAssignments);
     saveAssignments(updatedAssignments);
+
+    // Remove points data for this person
+    const updatedPointsData = pointsData.filter((pd) => pd.personId !== id);
+    setPointsData(updatedPointsData);
+    savePointsData(updatedPointsData);
   };
 
   const toggleChoreCompletion = (assignmentId: string) => {
-    const updatedAssignments = assignments.map((a) =>
-      a.id === assignmentId ? { ...a, completed: !a.completed } : a
-    );
+    const updatedAssignments = assignments.map((a) => {
+      if (a.id === assignmentId) {
+        const completed = !a.completed;
+        return {
+          ...a,
+          completed,
+          completedAt: completed ? Date.now() : undefined,
+        };
+      }
+      return a;
+    });
     setAssignments(updatedAssignments);
     saveAssignments(updatedAssignments);
   };
@@ -151,6 +242,7 @@ export function useChoreData() {
     chores,
     people,
     assignments,
+    pointsData,
     loading,
     addChore,
     updateChore,
@@ -160,5 +252,6 @@ export function useChoreData() {
     deletePerson,
     toggleChoreCompletion,
     reassignChores,
+    getPersonPoints,
   };
 }

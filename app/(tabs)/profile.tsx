@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function ProfileScreen() {
-  const { chores, people, assignments } = useChoreData();
+  const { chores, people, assignments, getPersonPoints } = useChoreData();
   const { currentUser, isAdmin, logout } = useAuth();
   const router = useRouter();
 
@@ -22,6 +22,10 @@ export default function ProfileScreen() {
 
   const completedCount = currentAssignments.filter((a) => a.completed).length;
   const totalCount = currentAssignments.length;
+
+  // Get current user's person data
+  const userPerson = people.find((p) => p.name === currentUser?.username);
+  const { weeklyPoints, yearlyPoints } = userPerson ? getPersonPoints(userPerson.id) : { weeklyPoints: 0, yearlyPoints: 0 };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -64,6 +68,29 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Points Section */}
+        <View style={styles.pointsSection}>
+          <View style={styles.pointsCard}>
+            <View style={styles.pointsHeader}>
+              <IconSymbol name="star.fill" color={colors.warning} size={32} />
+              <Text style={styles.pointsTitle}>Your Points</Text>
+            </View>
+            <View style={styles.pointsGrid}>
+              <View style={styles.pointsItem}>
+                <Text style={styles.pointsValue}>{weeklyPoints}</Text>
+                <Text style={styles.pointsLabel}>This Week</Text>
+                <Text style={styles.pointsSubtext}>Resets weekly</Text>
+              </View>
+              <View style={styles.pointsDivider} />
+              <View style={styles.pointsItem}>
+                <Text style={styles.pointsValue}>{yearlyPoints}</Text>
+                <Text style={styles.pointsLabel}>This Year</Text>
+                <Text style={styles.pointsSubtext}>Total {currentYear}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
@@ -75,15 +102,15 @@ export default function ProfileScreen() {
           <View style={styles.statCard}>
             <IconSymbol name="person.2.fill" color={colors.secondary} size={32} />
             <Text style={styles.statValue}>{people.length}</Text>
-            <Text style={styles.statLabel}>Household Members</Text>
+            <Text style={styles.statLabel}>Members</Text>
           </View>
 
           <View style={styles.statCard}>
-            <IconSymbol name="checkmark.circle.fill" color="#34C759" size={32} />
+            <IconSymbol name="checkmark.circle.fill" color={colors.success} size={32} />
             <Text style={styles.statValue}>
               {completedCount}/{totalCount}
             </Text>
-            <Text style={styles.statLabel}>Completed This Week</Text>
+            <Text style={styles.statLabel}>This Week</Text>
           </View>
         </View>
 
@@ -166,7 +193,7 @@ export default function ProfileScreen() {
 
         {/* Logout Button */}
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <IconSymbol name="rectangle.portrait.and.arrow.right" color="#FF3B30" size={20} />
+          <IconSymbol name="rectangle.portrait.and.arrow.right" color={colors.danger} size={20} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </Pressable>
       </ScrollView>
@@ -189,7 +216,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   avatarContainer: {
     marginBottom: 16,
@@ -214,10 +241,60 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.card,
   },
+  pointsSection: {
+    marginBottom: 24,
+  },
+  pointsCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 20,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  pointsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  pointsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  pointsGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pointsItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  pointsValue: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  pointsLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  pointsSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  pointsDivider: {
+    width: 2,
+    height: 60,
+    backgroundColor: colors.accent,
+  },
   statsContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   statCard: {
     flex: 1,
@@ -305,7 +382,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   permissionBadgeTextActive: {
-    color: colors.primary,
+    color: colors.success,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -316,12 +393,12 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 8,
     borderWidth: 2,
-    borderColor: '#FF3B30',
+    borderColor: colors.danger,
     gap: 8,
   },
   logoutButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FF3B30',
+    color: colors.danger,
   },
 });

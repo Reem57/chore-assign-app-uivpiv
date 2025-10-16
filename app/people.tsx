@@ -95,6 +95,14 @@ export default function PeopleScreen() {
           },
           headerTintColor: colors.primary,
           presentation: 'modal',
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <IconSymbol name="chevron.left" color={colors.primary} size={24} />
+            </Pressable>
+          ),
         }}
       />
       <View style={styles.container}>
@@ -183,7 +191,7 @@ export default function PeopleScreen() {
                       style={styles.deleteButton}
                       onPress={() => handleDelete(person.id, person.name)}
                     >
-                      <IconSymbol name="trash" color="#FF3B30" size={20} />
+                      <IconSymbol name="trash" color={colors.danger} size={20} />
                     </Pressable>
                   </View>
                 </View>
@@ -205,6 +213,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 32,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   header: {
     marginBottom: 24,

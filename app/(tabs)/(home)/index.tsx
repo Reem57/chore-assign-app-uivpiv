@@ -11,7 +11,7 @@ import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { chores, people, assignments, loading, toggleChoreCompletion } = useChoreData();
+  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints } = useChoreData();
   const { currentUser, isAdmin, logout } = useAuth();
 
   const currentWeek = getWeekNumber(new Date());
@@ -207,18 +207,28 @@ export default function HomeScreen() {
 
                 const personAssignments = assignmentsByPerson[personId] || [];
                 const completedPersonChores = personAssignments.filter((a) => a.completed).length;
+                const { weeklyPoints, yearlyPoints } = getPersonPoints(personId);
 
                 return (
                   <View key={person.id} style={styles.personCard}>
                     <View style={styles.personHeader}>
                       <View style={styles.personInfo}>
-                        <IconSymbol name="person.circle.fill" color={colors.primary} size={32} />
+                        <View style={styles.personAvatar}>
+                          <IconSymbol name="person.circle.fill" color={colors.primary} size={40} />
+                        </View>
                         <View style={styles.personTextContainer}>
                           <Text style={styles.personName}>{person.name}</Text>
                           <Text style={styles.personStats}>
                             {completedPersonChores}/{personAssignments.length} completed
                           </Text>
                         </View>
+                      </View>
+                      <View style={styles.pointsContainer}>
+                        <View style={styles.pointsBadge}>
+                          <IconSymbol name="star.fill" color={colors.warning} size={16} />
+                          <Text style={styles.pointsText}>{weeklyPoints}</Text>
+                        </View>
+                        <Text style={styles.pointsLabel}>This Week</Text>
                       </View>
                     </View>
 
@@ -250,14 +260,20 @@ export default function HomeScreen() {
                                     <IconSymbol name="checkmark" color={colors.card} size={16} />
                                   )}
                                 </View>
-                                <Text
-                                  style={[
-                                    styles.choreItemText,
-                                    assignment.completed && styles.choreItemTextCompleted,
-                                  ]}
-                                >
-                                  {chore.name}
-                                </Text>
+                                <View style={styles.choreTextContainer}>
+                                  <Text
+                                    style={[
+                                      styles.choreItemText,
+                                      assignment.completed && styles.choreItemTextCompleted,
+                                    ]}
+                                  >
+                                    {chore.name}
+                                  </Text>
+                                  <View style={styles.chorePointsBadge}>
+                                    <IconSymbol name="star.fill" color={colors.warning} size={12} />
+                                    <Text style={styles.chorePointsText}>+{chore.points || 10}</Text>
+                                  </View>
+                                </View>
                               </View>
                             </Pressable>
                           );
@@ -355,7 +371,7 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     height: 8,
-    backgroundColor: colors.background,
+    backgroundColor: colors.accent,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
@@ -419,14 +435,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   personHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
   personInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  personAvatar: {
+    marginRight: 12,
   },
   personTextContainer: {
-    marginLeft: 12,
     flex: 1,
   },
   personName: {
@@ -438,6 +460,28 @@ const styles = StyleSheet.create({
   personStats: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  pointsContainer: {
+    alignItems: 'center',
+  },
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.highlight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  pointsText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  pointsLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   noChoresText: {
     fontSize: 14,
@@ -458,7 +502,7 @@ const styles = StyleSheet.create({
   },
   choreItemCompleted: {
     backgroundColor: colors.highlight,
-    borderColor: colors.secondary,
+    borderColor: colors.success,
   },
   choreItemContent: {
     flexDirection: 'row',
@@ -475,8 +519,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  choreTextContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   choreItemText: {
     fontSize: 16,
@@ -487,6 +537,20 @@ const styles = StyleSheet.create({
   choreItemTextCompleted: {
     textDecorationLine: 'line-through',
     color: colors.textSecondary,
+  },
+  chorePointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.card,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  chorePointsText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.warning,
   },
   headerButtonContainer: {
     padding: 8,

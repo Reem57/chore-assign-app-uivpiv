@@ -26,6 +26,9 @@ export interface Assignment {
   assignedAt: number;
   completedAt?: number;
   points?: number;
+  startTime?: number; // Unix timestamp for when this assignment period starts
+  endTime?: number; // Unix timestamp for when this assignment period ends
+  notificationId?: string; // ID of the scheduled notification
 }
 
 export interface User {

@@ -1,13 +1,25 @@
 
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { Chore, Person, Assignment, PointsData } from '@/types/chore';
 import { assignChores, getWeekNumber } from '@/utils/choreAssignment';
+import { Platform } from 'react-native';
 
 const CHORES_KEY = '@chores';
 const PEOPLE_KEY = '@people';
 const ASSIGNMENTS_KEY = '@assignments';
 const POINTS_KEY = '@points';
+
+// Set up notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export function useChoreData() {
   const [chores, setChores] = useState<Chore[]>([]);
@@ -15,6 +27,11 @@ export function useChoreData() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [pointsData, setPointsData] = useState<PointsData[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Request notification permissions on mount
+  useEffect(() => {
+    requestNotificationPermissions();
+  }, []);
 
   // Load data from storage
   useEffect(() => {
@@ -28,6 +45,7 @@ export function useChoreData() {
       if (newAssignments.length !== assignments.length) {
         setAssignments(newAssignments);
         saveAssignments(newAssignments);
+        scheduleNotificationsForAssignments(newAssignments);
       }
     }
   }, [chores, people, loading]);
@@ -38,6 +56,80 @@ export function useChoreData() {
       updatePoints();
     }
   }, [assignments, loading]);
+
+  const requestNotificationPermissions = async () => {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        console.log('Notification permissions not granted');
+        return;
+      }
+
+      // Set up notification channel for Android
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('chore-reminders', {
+          name: 'Chore Reminders',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          sound: 'default',
+        });
+      }
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
+    }
+  };
+
+  const scheduleNotificationsForAssignments = async (assignmentsToSchedule: Assignment[]) => {
+    try {
+      // Cancel all existing scheduled notifications
+      await Notifications.cancelAllScheduledNotificationsAsync();
+
+      // Schedule notifications for incomplete assignments
+      for (const assignment of assignmentsToSchedule) {
+        if (!assignment.completed && assignment.startTime) {
+          const chore = chores.find((c) => c.id === assignment.choreId);
+          const person = people.find((p) => p.id === assignment.personId);
+
+          if (chore && person) {
+            // Schedule notification 1 hour after the assignment start time
+            const notificationTime = assignment.startTime + (60 * 60 * 1000);
+            const now = Date.now();
+
+            if (notificationTime > now) {
+              const notificationId = await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: 'Chore Reminder',
+                  body: `Time to do: ${chore.name}`,
+                  data: { assignmentId: assignment.id },
+                  sound: 'default',
+                },
+                trigger: {
+                  type: Notifications.SchedulableTriggerInputTypes.DATE,
+                  date: notificationTime,
+                  channelId: Platform.OS === 'android' ? 'chore-reminders' : undefined,
+                },
+              });
+
+              // Update assignment with notification ID
+              assignment.notificationId = notificationId;
+            }
+          }
+        }
+      }
+
+      // Save updated assignments with notification IDs
+      await saveAssignments(assignmentsToSchedule);
+    } catch (error) {
+      console.error('Error scheduling notifications:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -175,7 +267,14 @@ export function useChoreData() {
     setChores(updatedChores);
     saveChores(updatedChores);
 
-    // Remove assignments for this chore
+    // Remove assignments for this chore and cancel their notifications
+    const assignmentsToRemove = assignments.filter((a) => a.choreId === id);
+    assignmentsToRemove.forEach((assignment) => {
+      if (assignment.notificationId) {
+        Notifications.cancelScheduledNotificationAsync(assignment.notificationId);
+      }
+    });
+
     const updatedAssignments = assignments.filter((a) => a.choreId !== id);
     setAssignments(updatedAssignments);
     saveAssignments(updatedAssignments);
@@ -205,7 +304,14 @@ export function useChoreData() {
     setPeople(updatedPeople);
     savePeople(updatedPeople);
 
-    // Remove assignments for this person
+    // Remove assignments for this person and cancel their notifications
+    const assignmentsToRemove = assignments.filter((a) => a.personId === id);
+    assignmentsToRemove.forEach((assignment) => {
+      if (assignment.notificationId) {
+        Notifications.cancelScheduledNotificationAsync(assignment.notificationId);
+      }
+    });
+
     const updatedAssignments = assignments.filter((a) => a.personId !== id);
     setAssignments(updatedAssignments);
     saveAssignments(updatedAssignments);
@@ -216,10 +322,16 @@ export function useChoreData() {
     savePointsData(updatedPointsData);
   };
 
-  const toggleChoreCompletion = (assignmentId: string) => {
+  const toggleChoreCompletion = async (assignmentId: string) => {
     const updatedAssignments = assignments.map((a) => {
       if (a.id === assignmentId) {
         const completed = !a.completed;
+        
+        // Cancel notification if completing the chore
+        if (completed && a.notificationId) {
+          Notifications.cancelScheduledNotificationAsync(a.notificationId);
+        }
+        
         return {
           ...a,
           completed,
@@ -232,10 +344,16 @@ export function useChoreData() {
     saveAssignments(updatedAssignments);
   };
 
-  const reassignChores = () => {
+  const reassignChores = async () => {
+    // Cancel all existing notifications
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    
     const newAssignments = assignChores(chores, people, []);
     setAssignments(newAssignments);
     saveAssignments(newAssignments);
+    
+    // Schedule new notifications
+    await scheduleNotificationsForAssignments(newAssignments);
   };
 
   return {

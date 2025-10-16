@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,24 @@ import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PeopleScreen() {
   const router = useRouter();
   const { people, addPerson, updatePerson, deletePerson } = useChoreData();
+  const { isAdmin } = useAuth();
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [personName, setPersonName] = useState('');
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (!isAdmin()) {
+      Alert.alert('Access Denied', 'Only admins can manage people');
+      router.back();
+    }
+  }, [isAdmin]);
 
   const handleAdd = () => {
     if (!personName.trim()) {
@@ -70,6 +80,10 @@ export default function PeopleScreen() {
     setIsAdding(false);
     setEditingId(null);
   };
+
+  if (!isAdmin()) {
+    return null;
+  }
 
   return (
     <>

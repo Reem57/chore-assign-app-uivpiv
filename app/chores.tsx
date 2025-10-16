@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,15 +14,25 @@ import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ChoresScreen() {
   const router = useRouter();
   const { chores, addChore, updateChore, deleteChore, reassignChores } = useChoreData();
+  const { isAdmin } = useAuth();
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [choreName, setChoreName] = useState('');
   const [timesPerWeek, setTimesPerWeek] = useState('1');
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (!isAdmin()) {
+      Alert.alert('Access Denied', 'Only admins can manage chores');
+      router.back();
+    }
+  }, [isAdmin]);
 
   const handleAdd = () => {
     if (!choreName.trim()) {
@@ -105,6 +115,10 @@ export default function ChoresScreen() {
       ]
     );
   };
+
+  if (!isAdmin()) {
+    return null;
+  }
 
   return (
     <>

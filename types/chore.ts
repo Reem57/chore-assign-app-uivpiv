@@ -10,6 +10,7 @@ export interface Person {
   id: string;
   name: string;
   createdAt: number;
+  isAdmin?: boolean;
 }
 
 export interface Assignment {
@@ -20,4 +21,13 @@ export interface Assignment {
   year: number;
   completed: boolean;
   assignedAt: number;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  password: string;
+  personId: string;
+  isAdmin: boolean;
+  createdAt: number;
 }

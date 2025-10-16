@@ -6,11 +6,13 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
+import { useAuth } from '@/contexts/AuthContext';
 import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { chores, people, assignments, loading, toggleChoreCompletion } = useChoreData();
+  const { currentUser, isAdmin, logout } = useAuth();
 
   const currentWeek = getWeekNumber(new Date());
   const currentYear = new Date().getFullYear();
@@ -22,18 +24,37 @@ export default function HomeScreen() {
     );
   }, [assignments, currentWeek, currentYear]);
 
+  // Filter assignments for current user if not admin
+  const userAssignments = useMemo(() => {
+    if (isAdmin()) {
+      return currentAssignments;
+    }
+    // Find the person associated with current user
+    const userPerson = people.find((p) => p.name === currentUser?.username);
+    if (!userPerson) return [];
+    return currentAssignments.filter((a) => a.personId === userPerson.id);
+  }, [currentAssignments, currentUser, people, isAdmin]);
+
   // Group assignments by person
   const assignmentsByPerson = useMemo(() => {
     const grouped: { [key: string]: typeof currentAssignments } = {};
     
-    people.forEach((person) => {
-      grouped[person.id] = currentAssignments.filter(
-        (a) => a.personId === person.id
-      );
-    });
+    if (isAdmin()) {
+      people.forEach((person) => {
+        grouped[person.id] = currentAssignments.filter(
+          (a) => a.personId === person.id
+        );
+      });
+    } else {
+      // For regular users, only show their own assignments
+      const userPerson = people.find((p) => p.name === currentUser?.username);
+      if (userPerson) {
+        grouped[userPerson.id] = userAssignments;
+      }
+    }
 
     return grouped;
-  }, [currentAssignments, people]);
+  }, [currentAssignments, people, isAdmin, currentUser, userAssignments]);
 
   const getChoreById = (choreId: string) => {
     return chores.find((c) => c.id === choreId);
@@ -43,26 +64,42 @@ export default function HomeScreen() {
     return people.find((p) => p.id === personId);
   };
 
-  const completedCount = currentAssignments.filter((a) => a.completed).length;
-  const totalCount = currentAssignments.length;
+  const completedCount = userAssignments.filter((a) => a.completed).length;
+  const totalCount = userAssignments.length;
   const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const handleManagePeople = () => {
+    console.log('Manage People button pressed');
+    if (isAdmin()) {
+      router.push('/people');
+    }
+  };
+
+  const handleManageChores = () => {
+    console.log('Manage Chores button pressed');
+    if (isAdmin()) {
+      router.push('/chores');
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/login');
+  };
 
   const renderHeaderRight = () => (
     <Pressable
-      onPress={() => router.push('/chores')}
+      onPress={handleLogout}
       style={styles.headerButtonContainer}
     >
-      <IconSymbol name="list.bullet" color={colors.primary} size={24} />
+      <IconSymbol name="rectangle.portrait.and.arrow.right" color={colors.primary} size={24} />
     </Pressable>
   );
 
   const renderHeaderLeft = () => (
-    <Pressable
-      onPress={() => router.push('/people')}
-      style={styles.headerButtonContainer}
-    >
-      <IconSymbol name="person.2.fill" color={colors.primary} size={24} />
-    </Pressable>
+    <View style={styles.headerButtonContainer}>
+      <Text style={styles.headerUsername}>{currentUser?.username}</Text>
+    </View>
   );
 
   if (loading) {
@@ -94,13 +131,25 @@ export default function HomeScreen() {
         >
           {/* Header Section */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>This Week&apos;s Chores</Text>
+            <View style={styles.welcomeContainer}>
+              <Text style={styles.headerTitle}>
+                {isAdmin() ? "This Week's Chores" : 'Your Chores'}
+              </Text>
+              {isAdmin() && (
+                <View style={styles.adminBadge}>
+                  <IconSymbol name="star.fill" color={colors.card} size={12} />
+                  <Text style={styles.adminBadgeText}>Admin</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.headerSubtitle}>Week {currentWeek}, {currentYear}</Text>
             
             {/* Progress Card */}
             <View style={styles.progressCard}>
               <View style={styles.progressInfo}>
-                <Text style={styles.progressLabel}>Overall Progress</Text>
+                <Text style={styles.progressLabel}>
+                  {isAdmin() ? 'Overall Progress' : 'Your Progress'}
+                </Text>
                 <Text style={styles.progressPercentage}>{completionPercentage}%</Text>
               </View>
               <View style={styles.progressBarContainer}>
@@ -112,42 +161,51 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <Pressable
-              style={styles.actionButton}
-              onPress={() => router.push('/people')}
-            >
-              <IconSymbol name="person.2.fill" color={colors.card} size={24} />
-              <Text style={styles.actionButtonText}>Manage People</Text>
-            </Pressable>
-            <Pressable
-              style={styles.actionButton}
-              onPress={() => router.push('/chores')}
-            >
-              <IconSymbol name="list.bullet" color={colors.card} size={24} />
-              <Text style={styles.actionButtonText}>Manage Chores</Text>
-            </Pressable>
-          </View>
+          {/* Quick Actions - Only for Admin */}
+          {isAdmin() && (
+            <View style={styles.quickActions}>
+              <Pressable
+                style={styles.actionButton}
+                onPress={handleManagePeople}
+              >
+                <IconSymbol name="person.2.fill" color={colors.card} size={24} />
+                <Text style={styles.actionButtonText}>Manage People</Text>
+              </Pressable>
+              <Pressable
+                style={styles.actionButton}
+                onPress={handleManageChores}
+              >
+                <IconSymbol name="list.bullet" color={colors.card} size={24} />
+                <Text style={styles.actionButtonText}>Manage Chores</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Empty State */}
           {people.length === 0 || chores.length === 0 ? (
             <View style={styles.emptyState}>
               <IconSymbol name="exclamationmark.triangle" color={colors.textSecondary} size={48} />
-              <Text style={styles.emptyStateTitle}>Get Started!</Text>
+              <Text style={styles.emptyStateTitle}>
+                {isAdmin() ? 'Get Started!' : 'No Chores Yet'}
+              </Text>
               <Text style={styles.emptyStateText}>
-                {people.length === 0 && chores.length === 0
-                  ? 'Add people and chores to start managing your household tasks.'
-                  : people.length === 0
-                  ? 'Add people to your household to assign chores.'
-                  : 'Add chores to start assigning tasks.'}
+                {isAdmin()
+                  ? people.length === 0 && chores.length === 0
+                    ? 'Add people and chores to start managing your household tasks.'
+                    : people.length === 0
+                    ? 'Add people to your household to assign chores.'
+                    : 'Add chores to start assigning tasks.'
+                  : 'The admin hasn\'t assigned any chores yet. Check back later!'}
               </Text>
             </View>
           ) : (
             <>
               {/* Assignments by Person */}
-              {people.map((person) => {
-                const personAssignments = assignmentsByPerson[person.id] || [];
+              {Object.keys(assignmentsByPerson).map((personId) => {
+                const person = getPersonById(personId);
+                if (!person) return null;
+
+                const personAssignments = assignmentsByPerson[personId] || [];
                 const completedPersonChores = personAssignments.filter((a) => a.completed).length;
 
                 return (
@@ -242,11 +300,30 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
   },
+  welcomeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
     color: colors.text,
-    marginBottom: 4,
+    marginRight: 8,
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  adminBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.card,
   },
   headerSubtitle: {
     fontSize: 16,
@@ -413,5 +490,10 @@ const styles = StyleSheet.create({
   },
   headerButtonContainer: {
     padding: 8,
+  },
+  headerUsername: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });

@@ -14,9 +14,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAdmin: () => boolean;
   loading: boolean;
-  updateUsername: (newUsername: string) => Promise<boolean>;
-  updatePassword: (newPassword: string) => Promise<boolean>;
-  refreshCurrentUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -121,48 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return currentUser?.isAdmin || false;
   };
 
-  const updateUsername = async (newUsername: string): Promise<boolean> => {
-    if (!currentUser) return false;
-
-    // Check if username already exists
-    const existingUser = users.find(
-      (u) => u.username.toLowerCase() === newUsername.toLowerCase() && u.id !== currentUser.id
-    );
-
-    if (existingUser) {
-      return false;
-    }
-
-    const updatedUser = { ...currentUser, username: newUsername };
-    const updatedUsers = users.map((u) => (u.id === currentUser.id ? updatedUser : u));
-
-    await saveUsers(updatedUsers);
-    await saveCurrentUser(updatedUser);
-
-    return true;
-  };
-
-  const updatePassword = async (newPassword: string): Promise<boolean> => {
-    if (!currentUser) return false;
-
-    const updatedUser = { ...currentUser, password: newPassword };
-    const updatedUsers = users.map((u) => (u.id === currentUser.id ? updatedUser : u));
-
-    await saveUsers(updatedUsers);
-    await saveCurrentUser(updatedUser);
-
-    return true;
-  };
-
-  const refreshCurrentUser = async () => {
-    if (currentUser) {
-      const updatedUser = users.find((u) => u.id === currentUser.id);
-      if (updatedUser) {
-        await saveCurrentUser(updatedUser);
-      }
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -173,9 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         isAdmin,
         loading,
-        updateUsername,
-        updatePassword,
-        refreshCurrentUser,
       }}
     >
       {children}

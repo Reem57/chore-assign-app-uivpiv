@@ -1,7 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Stack } from 'expo-router';
-import { ScrollView, StyleSheet, View, Text, Pressable, Platform } from 'react-native';
+import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
@@ -67,6 +67,13 @@ export default function HomeScreen() {
   const completedCount = userAssignments.filter((a) => a.completed).length;
   const totalCount = userAssignments.length;
   const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  // Non-admin user stats
+  const userPerson = people.find((p) => p.name === currentUser?.username);
+  const remainingTasks = userAssignments.filter((a) => !a.completed).length;
+  const DEFAULT_MINUTES_PER_TASK = 15; // assumption: average task takes 15 minutes
+  const estimatedMinutesRemaining = remainingTasks * DEFAULT_MINUTES_PER_TASK;
+  const userPoints = userPerson ? getPersonPoints(userPerson.id) : { weeklyPoints: 0, yearlyPoints: 0 };
 
   const handleManagePeople = () => {
     console.log('Manage People button pressed');
@@ -181,6 +188,24 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* Non-admin summary: points and remaining time */}
+          {!isAdmin() && userPerson && (
+            <View style={styles.userSummaryCard}>
+              <View style={styles.userSummaryRow}>
+                <Text style={styles.userSummaryLabel}>Points this week</Text>
+                <Text style={styles.userSummaryValue}>{userPoints.weeklyPoints}</Text>
+              </View>
+              <View style={styles.userSummaryRow}>
+                <Text style={styles.userSummaryLabel}>Tasks remaining</Text>
+                <Text style={styles.userSummaryValue}>{remainingTasks}</Text>
+              </View>
+              <View style={styles.userSummaryRow}>
+                <Text style={styles.userSummaryLabel}>Estimated time left</Text>
+                <Text style={styles.userSummaryValue}>{estimatedMinutesRemaining} min</Text>
+              </View>
+            </View>
+          )}
+
           {/* Empty State */}
           {people.length === 0 || chores.length === 0 ? (
             <View style={styles.emptyState}>
@@ -269,6 +294,18 @@ export default function HomeScreen() {
                                   >
                                     {chore.name}
                                   </Text>
+                                  {/* Details button to view description */}
+                                  <Pressable
+                                    onPress={() => Alert.alert(chore.name, chore.description || 'No description provided')}
+                                    style={{ paddingHorizontal: 8 }}
+                                  >
+                                    <Text style={styles.detailsButtonText}>Details</Text>
+                                  </Pressable>
+                                  {typeof assignment.dayOfWeek === 'number' && (
+                                    <Text style={styles.choreDay}>
+                                      {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][assignment.dayOfWeek]}
+                                    </Text>
+                                  )}
                                   <View style={styles.chorePointsBadge}>
                                     <IconSymbol name="star.fill" color={colors.warning} size={12} />
                                     <Text style={styles.chorePointsText}>+{chore.points || 10}</Text>
@@ -385,6 +422,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  userSummaryCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  userSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  userSummaryLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  userSummaryValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  detailsButtonText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 4,
   },
   quickActions: {
     flexDirection: 'row',
@@ -533,6 +596,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '500',
     flex: 1,
+  },
+  choreDay: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   choreItemTextCompleted: {
     textDecorationLine: 'line-through',

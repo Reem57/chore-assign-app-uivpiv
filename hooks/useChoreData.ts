@@ -149,22 +149,24 @@ export function useChoreData() {
     };
   };
 
-  const addChore = (name: string, timesPerWeek: number, points: number = 10) => {
+  const addChore = (name: string, timesPerWeek: number, points: number = 10, description: string = '', floor: string = '') => {
     const newChore: Chore = {
       id: Date.now().toString(),
       name,
+      description,
       timesPerWeek,
       points,
       createdAt: Date.now(),
+      floor: floor || undefined,
     };
     const updatedChores = [...chores, newChore];
     setChores(updatedChores);
     saveChores(updatedChores);
   };
 
-  const updateChore = (id: string, name: string, timesPerWeek: number, points: number = 10) => {
+  const updateChore = (id: string, name: string, timesPerWeek: number, points: number = 10, description: string = '', floor: string = '') => {
     const updatedChores = chores.map((c) =>
-      c.id === id ? { ...c, name, timesPerWeek, points } : c
+      c.id === id ? { ...c, name, timesPerWeek, points, description, floor: floor || undefined } : c
     );
     setChores(updatedChores);
     saveChores(updatedChores);
@@ -181,20 +183,21 @@ export function useChoreData() {
     saveAssignments(updatedAssignments);
   };
 
-  const addPerson = (name: string) => {
+  const addPerson = (name: string, floor?: string) => {
     const newPerson: Person = {
       id: Date.now().toString(),
       name,
       createdAt: Date.now(),
+      floor,
     };
     const updatedPeople = [...people, newPerson];
     setPeople(updatedPeople);
     savePeople(updatedPeople);
   };
 
-  const updatePerson = (id: string, name: string) => {
+  const updatePerson = (id: string, name: string, floor?: string) => {
     const updatedPeople = people.map((p) =>
-      p.id === id ? { ...p, name } : p
+      p.id === id ? { ...p, name, floor } : p
     );
     setPeople(updatedPeople);
     savePeople(updatedPeople);
@@ -233,9 +236,27 @@ export function useChoreData() {
   };
 
   const reassignChores = () => {
-    const newAssignments = assignChores(chores, people, []);
-    setAssignments(newAssignments);
-    saveAssignments(newAssignments);
+    // Force create new assignments for current week only, clearing all current week assignments
+    const now = new Date();
+    const currentWeek = getWeekNumber(now);
+    const currentYear = now.getFullYear();
+    
+    // Keep only previous weeks' assignments
+    const previousAssignments = assignments.filter(
+      (a) => !(a.weekNumber === currentWeek && a.year === currentYear)
+    );
+    
+    // Create completely fresh assignments (pass empty array to force creation)
+    const newCurrentWeekAssignments = assignChores(chores, people, []);
+    
+    // Combine previous weeks with new current week assignments
+    const allAssignments = [...previousAssignments, ...newCurrentWeekAssignments];
+    
+    console.log('Reassigning chores - total assignments after reassign:', allAssignments.length);
+    console.log('Current week assignments:', newCurrentWeekAssignments.length);
+    
+    setAssignments(allAssignments);
+    saveAssignments(allAssignments);
   };
 
   return {

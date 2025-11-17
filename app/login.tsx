@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
@@ -27,6 +28,23 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [scaleAnim] = useState(new Animated.Value(1));
+
+  const triggerButtonAnimation = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -34,12 +52,15 @@ export default function LoginScreen() {
       return;
     }
 
+    // Trigger animation
+    triggerButtonAnimation();
+
     setLoading(true);
     const success = await login(username.trim(), password);
     setLoading(false);
 
     if (success) {
-      router.replace('/(tabs)/(home)/');
+      router.replace('/(tabs)/' as any);
     } else {
       Alert.alert('Error', 'Invalid username or password');
     }
@@ -56,6 +77,9 @@ export default function LoginScreen() {
       return;
     }
 
+    // Trigger animation
+    triggerButtonAnimation();
+
     setLoading(true);
     const success = await signup(username.trim(), password, name.trim());
     setLoading(false);
@@ -63,7 +87,7 @@ export default function LoginScreen() {
     if (success) {
       // Add the person to the people list
       addPerson(name.trim());
-      router.replace('/(tabs)/(home)/');
+      router.replace('/(tabs)/' as any);
     } else {
       Alert.alert('Error', 'Username already exists');
     }
@@ -141,9 +165,17 @@ export default function LoginScreen() {
                   onChangeText={setPassword}
                   placeholder="Enter password"
                   placeholderTextColor={colors.textSecondary}
-                  secureTextEntry
+                  secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
+                <Pressable
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Text style={styles.passwordToggleText}>
+                    {showPassword ? 'Hide' : 'Show'}
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
@@ -151,20 +183,26 @@ export default function LoginScreen() {
               <View style={styles.infoBox}>
                 <IconSymbol name="info.circle.fill" color={colors.primary} size={20} />
                 <Text style={styles.infoText}>
-                  The first user to sign up becomes the admin with full access to manage chores and people.
+                  Only the administrator can manage chores and add people. Regular users can view and complete their assigned chores.
                 </Text>
               </View>
             )}
 
-            <Pressable
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={isSignup ? handleSignup : handleLogin}
-              disabled={loading}
+            <Animated.View
+              style={{
+                transform: [{ scale: scaleAnim }],
+              }}
             >
-              <Text style={styles.submitButtonText}>
-                {loading ? 'Please wait...' : isSignup ? 'Sign Up' : 'Log In'}
-              </Text>
-            </Pressable>
+              <Pressable
+                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                onPress={isSignup ? handleSignup : handleLogin}
+                disabled={loading}
+              >
+                <Text style={styles.submitButtonText}>
+                  {loading ? 'Please wait...' : isSignup ? 'Sign Up' : 'Log In'}
+                </Text>
+              </Pressable>
+            </Animated.View>
 
             <Pressable
               style={styles.switchButton}
@@ -252,6 +290,18 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingVertical: 12,
     paddingLeft: 12,
+    paddingRight: 4,
+  },
+  passwordToggle: {
+    padding: 12,
+    marginLeft: 'auto',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  passwordToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   infoBox: {
     flexDirection: 'row',

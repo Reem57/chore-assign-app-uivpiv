@@ -2,9 +2,11 @@
 export interface Chore {
   id: string;
   name: string;
+  description?: string;
   timesPerWeek: number;
   createdAt: number;
   points?: number;
+  floor?: string; // Optional: if set, only people on this floor get assigned
 }
 
 export interface Person {
@@ -14,6 +16,7 @@ export interface Person {
   isAdmin?: boolean;
   weeklyPoints?: number;
   yearlyPoints?: number;
+  floor?: string; // Optional: which floor the person lives on
 }
 
 export interface Assignment {
@@ -25,6 +28,7 @@ export interface Assignment {
   completed: boolean;
   assignedAt: number;
   completedAt?: number;
+  dayOfWeek?: number; // 0 = Sunday, 6 = Saturday
   points?: number;
 }
 

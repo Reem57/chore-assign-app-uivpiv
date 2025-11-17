@@ -6,6 +6,10 @@ import { User } from '@/types/chore';
 const USERS_KEY = '@users';
 const CURRENT_USER_KEY = '@current_user';
 
+// Hardcoded admin credentials — change these to your preferred admin username/password
+const ADMIN_USERNAME = 'Reem';
+const ADMIN_PASSWORD = '110506';
+
 interface AuthContextType {
   currentUser: User | null;
   users: User[];
@@ -13,6 +17,8 @@ interface AuthContextType {
   signup: (username: string, password: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
+  setUserPassword: (userId: string, newPassword: string) => Promise<boolean>;
+  resetUserPassword: (userId: string) => Promise<string | null>;
   loading: boolean;
 }
 
@@ -69,7 +75,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setUserPassword = async (userId: string, newPassword: string) => {
+    try {
+      const updatedUsers = users.map((u) => (u.id === userId ? { ...u, password: newPassword } : u));
+      await saveUsers(updatedUsers);
+      // If the current user changed their own password, update currentUser
+      if (currentUser && currentUser.id === userId) {
+        await saveCurrentUser({ ...currentUser, password: newPassword });
+      }
+      return true;
+    } catch (error) {
+      console.error('Error setting user password:', error);
+      return false;
+    }
+  };
+
+  const resetUserPassword = async (userId: string) => {
+    try {
+      // generate a temporary 8-character alphanumeric password
+      const temp = Math.random().toString(36).slice(-8) + Math.floor(Math.random() * 90 + 10).toString();
+      const updatedUsers = users.map((u) => (u.id === userId ? { ...u, password: temp } : u));
+      await saveUsers(updatedUsers);
+      if (currentUser && currentUser.id === userId) {
+        await saveCurrentUser({ ...currentUser, password: temp });
+      }
+      return temp;
+    } catch (error) {
+      console.error('Error resetting user password:', error);
+      return null;
+    }
+  };
+
   const login = async (username: string, password: string): Promise<boolean> => {
+    // Check if trying to login as admin
+    if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase() && password === ADMIN_PASSWORD) {
+      const adminUser: User = {
+        id: 'admin_id',
+        username: ADMIN_USERNAME,
+        password: ADMIN_PASSWORD,
+        personId: 'admin_person_id',
+        isAdmin: true,
+        createdAt: Date.now(),
+      };
+      await saveCurrentUser(adminUser);
+      return true;
+    }
+
+    // Check regular users
     const user = users.find(
       (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password
     );
@@ -82,6 +134,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (username: string, password: string, name: string): Promise<boolean> => {
+    // Prevent signup with admin username
+    if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
+      return false;
+    }
+
     // Check if username already exists
     const existingUser = users.find(
       (u) => u.username.toLowerCase() === username.toLowerCase()
@@ -91,15 +148,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    // First user is admin
-    const isFirstUser = users.length === 0;
-
+    // All new signups are regular users (not admin)
     const newUser: User = {
       id: Date.now().toString(),
       username,
       password,
       personId: Date.now().toString() + '_person',
-      isAdmin: isFirstUser,
+      isAdmin: false,
       createdAt: Date.now(),
     };
 
@@ -127,6 +182,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         logout,
         isAdmin,
+        setUserPassword,
+        resetUserPassword,
         loading,
       }}
     >

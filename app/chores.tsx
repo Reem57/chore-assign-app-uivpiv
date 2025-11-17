@@ -18,14 +18,18 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function ChoresScreen() {
   const router = useRouter();
-  const { chores, addChore, updateChore, deleteChore, reassignChores } = useChoreData();
+  const { chores, people, assignments, addChore, updateChore, deleteChore, reassignChores } = useChoreData();
   const { isAdmin } = useAuth();
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [choreName, setChoreName] = useState('');
+  const [choreDescription, setChoreDescription] = useState('');
   const [timesPerWeek, setTimesPerWeek] = useState('1');
   const [points, setPoints] = useState('10');
+  const [selectedFloor, setSelectedFloor] = useState<string>('');
+  
+  const floors = ['Floor 1', 'Floor 2'];
 
   // Redirect if not admin
   useEffect(() => {
@@ -53,10 +57,12 @@ export default function ChoresScreen() {
       return;
     }
 
-    addChore(choreName.trim(), times, pointsValue);
+    addChore(choreName.trim(), times, pointsValue, choreDescription.trim(), selectedFloor);
     setChoreName('');
+    setChoreDescription('');
     setTimesPerWeek('1');
     setPoints('10');
+    setSelectedFloor('');
     setIsAdding(false);
   };
 
@@ -78,16 +84,20 @@ export default function ChoresScreen() {
       return;
     }
 
-    updateChore(editingId, choreName.trim(), times, pointsValue);
+    updateChore(editingId, choreName.trim(), times, pointsValue, choreDescription.trim(), selectedFloor);
     setChoreName('');
+    setChoreDescription('');
     setTimesPerWeek('1');
     setPoints('10');
+    setSelectedFloor('');
     setEditingId(null);
   };
 
-  const handleEdit = (id: string, name: string, times: number, chorePoints: number) => {
+  const handleEdit = (id: string, name: string, times: number, chorePoints: number, description: string = '', floor: string = '') => {
     setEditingId(id);
     setChoreName(name);
+    setChoreDescription(description);
+    setSelectedFloor(floor);
     setTimesPerWeek(times.toString());
     setPoints((chorePoints || 10).toString());
     setIsAdding(false);
@@ -110,8 +120,10 @@ export default function ChoresScreen() {
 
   const handleCancel = () => {
     setChoreName('');
+    setChoreDescription('');
     setTimesPerWeek('1');
     setPoints('10');
+    setSelectedFloor('');
     setIsAdding(false);
     setEditingId(null);
   };
@@ -125,7 +137,10 @@ export default function ChoresScreen() {
         {
           text: 'Reassign',
           onPress: () => {
+            console.log('Before reassign - People:', people.length, 'Chores:', chores.length);
+            console.log('Chores details:', chores.map(c => ({ name: c.name, timesPerWeek: c.timesPerWeek })));
             reassignChores();
+            console.log('After reassign - Assignments count:', assignments.length);
             Alert.alert('Success', 'Chores have been reassigned!');
           },
         },
@@ -214,6 +229,44 @@ export default function ChoresScreen() {
                 />
               </View>
 
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description (Optional)</Text>
+                <TextInput
+                  style={[styles.input, styles.descriptionInput]}
+                  value={choreDescription}
+                  onChangeText={setChoreDescription}
+                  placeholder="e.g., Clean kitchen counters, sink, and stove"
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Floor (Optional)</Text>
+                <View style={styles.floorButtonsContainer}>
+                  {floors.map((floor) => (
+                    <Pressable
+                      key={floor}
+                      style={[
+                        styles.floorButton,
+                        selectedFloor === floor && styles.floorButtonSelected,
+                      ]}
+                      onPress={() => setSelectedFloor(selectedFloor === floor ? '' : floor)}
+                    >
+                      <Text
+                        style={[
+                          styles.floorButtonText,
+                          selectedFloor === floor && styles.floorButtonTextSelected,
+                        ]}
+                      >
+                        {floor}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
               <View style={styles.formButtons}>
                 <Pressable style={styles.cancelButton} onPress={handleCancel}>
                   <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -261,6 +314,9 @@ export default function ChoresScreen() {
                 <View key={chore.id} style={styles.choreCard}>
                   <View style={styles.choreInfo}>
                     <Text style={styles.choreName}>{chore.name}</Text>
+                    {chore.floor && (
+                      <Text style={styles.choreFloor}>{chore.floor}</Text>
+                    )}
                     <View style={styles.choreDetails}>
                       <View style={styles.choreDetailItem}>
                         <IconSymbol name="calendar" color={colors.textSecondary} size={14} />
@@ -279,7 +335,7 @@ export default function ChoresScreen() {
                   <View style={styles.choreActions}>
                     <Pressable
                       style={styles.editButton}
-                      onPress={() => handleEdit(chore.id, chore.name, chore.timesPerWeek, chore.points || 10)}
+                      onPress={() => handleEdit(chore.id, chore.name, chore.timesPerWeek, chore.points || 10, chore.description || '', chore.floor || '')}
                     >
                       <IconSymbol name="pencil" color={colors.primary} size={20} />
                     </Pressable>
@@ -358,6 +414,37 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 2,
     borderColor: colors.accent,
+  },
+  descriptionInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  floorButtonsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  floorButton: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: 'center',
+  },
+  floorButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  floorButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  floorButtonTextSelected: {
+    color: colors.card,
   },
   formButtons: {
     flexDirection: 'row',
@@ -462,6 +549,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 6,
+  },
+  choreFloor: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 8,
   },
   choreDetails: {
     flexDirection: 'row',

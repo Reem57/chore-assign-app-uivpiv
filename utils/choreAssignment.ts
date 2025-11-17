@@ -26,8 +26,8 @@ export function assignChores(
     (a) => a.weekNumber === currentWeek && a.year === currentYear
   );
 
-  // If we already have assignments for this week, return them
-  if (currentWeekAssignments.length > 0) {
+  // If we already have assignments for this week AND we're not explicitly reassigning, return them
+  if (currentWeekAssignments.length > 0 && existingAssignments.length > 0) {
     console.log('Using existing assignments for current week');
     return currentWeekAssignments;
   }
@@ -37,9 +37,25 @@ export function assignChores(
   let personIndex = 0;
 
   chores.forEach((chore) => {
-    for (let i = 0; i < chore.timesPerWeek; i++) {
-      const person = people[personIndex % people.length];
-      
+    // If chore is assigned to a specific floor, only assign to people on that floor
+    const eligiblePeople = chore.floor
+      ? people.filter((p) => p.floor === chore.floor)
+      : people;
+
+    if (eligiblePeople.length === 0) {
+      console.log(`Warning: No people available for chore "${chore.name}" on floor "${chore.floor}"`);
+      return;
+    }
+
+    // Spread chore occurrences across the week: compute dayOfWeek for each occurrence
+    // days are 0 (Sunday) .. 6 (Saturday)
+    const occurrences = chore.timesPerWeek || 1;
+    for (let i = 0; i < occurrences; i++) {
+      // Distribute days fairly across the week
+      const dayOfWeek = Math.floor((i * 7) / occurrences) % 7;
+
+      const person = eligiblePeople[personIndex % eligiblePeople.length];
+
       newAssignments.push({
         id: `${chore.id}-${person.id}-${currentWeek}-${i}-${Date.now()}`,
         choreId: chore.id,
@@ -48,6 +64,7 @@ export function assignChores(
         year: currentYear,
         completed: false,
         assignedAt: Date.now(),
+        dayOfWeek,
       });
 
       personIndex++;
@@ -55,6 +72,10 @@ export function assignChores(
   });
 
   console.log(`Created ${newAssignments.length} new assignments for week ${currentWeek}`);
+  console.log('People count:', people.length);
+  console.log('Total chores per week:', chores.reduce((sum, c) => sum + c.timesPerWeek, 0));
+  console.log('New assignments:', newAssignments.map(a => ({ choreId: a.choreId, personId: a.personId })));
+  
   return newAssignments;
 }
 

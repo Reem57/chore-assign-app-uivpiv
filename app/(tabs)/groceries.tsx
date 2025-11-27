@@ -219,7 +219,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    // Push content slightly lower so headers sit a bit further down
+    paddingTop: 28,
     paddingBottom: 16,
   },
   scrollContentWithTabBar: {
@@ -231,6 +232,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
+    // Extra top margin to avoid iOS notch overlay and move header down
+    marginTop: 24,
     marginBottom: 24,
   },
   headerTitle: {

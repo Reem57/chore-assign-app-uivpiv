@@ -457,7 +457,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    // Slight top padding so header sits comfortably without being too low
+    paddingTop: 20,
     paddingBottom: 16,
   },
   scrollContentWithTabBar: {
@@ -469,6 +470,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
+    // Small top margin to avoid notch overlay without pushing too far down
+    marginTop: 12,
     marginBottom: 24,
   },
   welcomeContainer: {

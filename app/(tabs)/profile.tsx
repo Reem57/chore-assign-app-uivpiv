@@ -218,10 +218,10 @@ export default function ProfileScreen() {
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 48,
-    paddingBottom: 16,
+    paddingBottom: 100,
   },
   scrollContentWithTabBar: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   profileHeader: {
     alignItems: 'center',

@@ -34,15 +34,15 @@ export default function TabLayout() {
     return (
       <NativeTabs>
         <NativeTabs.Trigger name="(home)">
-          <Icon sf="house.fill" drawable="ic_home" color={colors.text} />
+          <Icon sf="house.fill" drawable="ic_home" selectedColor={colors.text} />
           <Label>Home</Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="leaderboard">
-          <Icon sf="list.number" drawable="ic_leader" color={colors.text} />
+          <Icon sf="list.number" drawable="ic_leader" selectedColor={colors.text} />
           <Label>Leaderboard</Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="profile">
-          <Icon sf="person.fill" drawable="ic_profile" color={colors.text} />
+          <Icon sf="person.fill" drawable="ic_profile" selectedColor={colors.text} />
           <Label>Profile</Label>
         </NativeTabs.Trigger>
       </NativeTabs>

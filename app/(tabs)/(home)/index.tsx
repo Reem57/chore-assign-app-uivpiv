@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Stack } from 'expo-router';
-import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl } from 'react-native';
+import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl, ActionSheetIOS } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
@@ -11,7 +11,7 @@ import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints, addRating, hasLocallyRated, refreshData } = useChoreData();
+  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints, addRating, hasLocallyRated, refreshData, getPersonForUsername, linkUserToPerson, addPerson } = useChoreData();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -41,8 +41,8 @@ export default function HomeScreen() {
     if (isAdmin()) {
       return currentAssignments;
     }
-    // Find the person associated with current user
-    const userPerson = people.find((p) => p.name === currentUser?.username);
+    // Find the person associated with current user (tolerant match)
+    const userPerson = getPersonForUsername(currentUser?.username || undefined);
     if (!userPerson) return [];
     return currentAssignments.filter((a) => a.personId === userPerson.id);
   }, [currentAssignments, currentUser, people, isAdmin]);
@@ -59,14 +59,14 @@ export default function HomeScreen() {
       });
     } else {
       // For regular users, only show their own assignments
-      const userPerson = people.find((p) => p.name === currentUser?.username);
+      const userPerson = getPersonForUsername(currentUser?.username || undefined);
       if (userPerson) {
         grouped[userPerson.id] = userAssignments;
       }
     }
 
     return grouped;
-  }, [currentAssignments, people, isAdmin, currentUser, userAssignments]);
+  }, [currentAssignments, people, isAdmin, currentUser, userAssignments, getPersonForUsername]);
 
   const getChoreById = (choreId: string) => {
     return chores.find((c) => c.id === choreId);
@@ -81,7 +81,68 @@ export default function HomeScreen() {
   const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   // Non-admin user stats
-  const userPerson = people.find((p) => p.name === currentUser?.username);
+  const userPerson = getPersonForUsername(currentUser?.username || undefined);
+
+  const showLinkPicker = () => {
+    if (!currentUser) return;
+    const username = currentUser.username;
+    const names = people.map((p) => p.name || 'Unknown');
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: 'Link to which person?',
+          options: [...names, 'Cancel'],
+          cancelButtonIndex: names.length,
+          userInterfaceStyle: 'light',
+        },
+        async (buttonIndex) => {
+          if (buttonIndex === names.length) return;
+          const person = people[buttonIndex];
+          if (person) {
+            await linkUserToPerson(username, person.id);
+            Alert.alert('Linked', `You are now linked to ${person.name}`);
+            onRefresh();
+          }
+        }
+      );
+    } else {
+      // Fallback simple list via Alert for Android/Web (limited buttons)
+      Alert.alert(
+        'Link to person',
+        'Please select your profile from People',
+        [
+          { text: 'Open People', onPress: () => { /* route to people for manual linking */ router.push('/people'); } },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
+  const autoLink = async () => {
+    if (!currentUser) return;
+    const candidate = getPersonForUsername(currentUser.username);
+    if (candidate) {
+      await linkUserToPerson(currentUser.username, candidate.id);
+      Alert.alert('Linked', `You are now linked to ${candidate.name}`);
+      onRefresh();
+      return;
+    }
+    // If no candidate, optionally create a new person with username
+    const name = currentUser.username;
+    addPerson(name);
+    // wait a tick for state to update
+    setTimeout(async () => {
+      const created = people.find((p) => (p.name || '').toLowerCase() === name.toLowerCase());
+      if (created) {
+        await linkUserToPerson(name, created.id);
+        Alert.alert('Created', `Created and linked to ${created.name}`);
+        onRefresh();
+      } else {
+        Alert.alert('Failed', 'Could not create/link person automatically. Please pick manually.');
+      }
+    }, 100);
+  };
   const remainingTasks = userAssignments.filter((a) => !a.completed).length;
   const DEFAULT_MINUTES_PER_TASK = 15; // assumption: average task takes 15 minutes
   const estimatedMinutesRemaining = remainingTasks * DEFAULT_MINUTES_PER_TASK;
@@ -202,6 +263,20 @@ export default function HomeScreen() {
           )}
 
           {/* Non-admin summary: points and remaining time */}
+          {!isAdmin() && !userPerson && (
+            <View style={[styles.userSummaryCard, { borderWidth: 2, borderColor: colors.warning }]}>
+              <Text style={[styles.userSummaryLabel, { marginBottom: 8 }]}>We couldn't find your profile in People.</Text>
+              <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-start' }}>
+                <Pressable style={[styles.actionButton, { paddingVertical: 10, flex: 0 }]} onPress={autoLink}>
+                  <Text style={styles.actionButtonText}>Link Automatically</Text>
+                </Pressable>
+                <Pressable style={[styles.actionButton, { paddingVertical: 10, flex: 0 }]} onPress={showLinkPicker}>
+                  <Text style={styles.actionButtonText}>Pick Person</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {!isAdmin() && userPerson && (
             <View style={styles.userSummaryCard}>
               <View style={styles.userSummaryRow}>
@@ -220,7 +295,7 @@ export default function HomeScreen() {
           )}
 
           {/* Empty State */}
-          {people.length === 0 || chores.length === 0 ? (
+          {Object.keys(assignmentsByPerson).length === 0 ? (
             <View style={styles.emptyState}>
               <IconSymbol name="exclamationmark.triangle" color={colors.textSecondary} size={48} />
               <Text style={styles.emptyStateTitle}>
@@ -232,7 +307,9 @@ export default function HomeScreen() {
                     ? 'Add people and chores to start managing your household tasks.'
                     : people.length === 0
                     ? 'Add people to your household to assign chores.'
-                    : 'Add chores to start assigning tasks.'
+                    : chores.length === 0
+                    ? 'Add chores to start assigning tasks.'
+                    : 'No assignments for this week yet. Click "Reassign All Chores" in Manage Chores.'
                   : 'The admin hasn\'t assigned any chores yet. Check back later!'}
               </Text>
             </View>
@@ -276,7 +353,8 @@ export default function HomeScreen() {
                       <View style={styles.choresList}>
                         {personAssignments.map((assignment) => {
                           const chore = getChoreById(assignment.choreId);
-                          if (!chore) return null;
+                          const choreName = chore?.name || `(Unknown chore ${assignment.choreId})`;
+                          const chorePoints = chore?.points ?? 10;
 
                           return (
                             <Pressable
@@ -305,11 +383,11 @@ export default function HomeScreen() {
                                       assignment.completed && styles.choreItemTextCompleted,
                                     ]}
                                   >
-                                    {chore.name}
+                                    {choreName}
                                   </Text>
                                   {/* Details button to view description */}
                                   <Pressable
-                                    onPress={() => Alert.alert(chore.name, chore.description || 'No description provided')}
+                                    onPress={() => Alert.alert(choreName, (chore?.description) || 'No description provided')}
                                     style={{ paddingHorizontal: 8 }}
                                   >
                                     <Text style={styles.detailsButtonText}>Details</Text>
@@ -321,7 +399,7 @@ export default function HomeScreen() {
                                   )}
                                             <View style={styles.chorePointsBadge}>
                                     <IconSymbol name="star.fill" color={colors.warning} size={12} />
-                                    <Text style={styles.chorePointsText}>+{chore.points || 10}</Text>
+                                    <Text style={styles.chorePointsText}>+{chorePoints}</Text>
                                   </View>
                                             {/* Rating button for other users to anonymously rate this completed assignment */}
                                             {assignment.completed && userPerson && userPerson.id !== person.id && !hasLocallyRated(assignment.id) && (
@@ -331,7 +409,7 @@ export default function HomeScreen() {
                                                   // present rating choices 1-5
                                                   Alert.alert(
                                                     'Rate this chore',
-                                                    `How well was "${chore.name}" done? (anonymous)` ,
+                                                    `How well was "${choreName}" done? (anonymous)` ,
                                                     [
                                                       { text: '1', onPress: () => { addRating(assignment.id, 1); Alert.alert('Thanks', 'Your rating was recorded'); } },
                                                       { text: '2', onPress: () => { addRating(assignment.id, 2); Alert.alert('Thanks', 'Your rating was recorded'); } },

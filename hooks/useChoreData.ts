@@ -9,6 +9,7 @@ const PEOPLE_KEY = '@people';
 const ASSIGNMENTS_KEY = '@assignments';
 const POINTS_KEY = '@points';
 const RATED_KEY = '@rated_assignments';
+const USER_PERSON_MAP_KEY = '@user_person_map';
 
 export function useChoreData() {
   const [chores, setChores] = useState<Chore[]>([]);
@@ -16,6 +17,7 @@ export function useChoreData() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [pointsData, setPointsData] = useState<PointsData[]>([]);
   const [localRatedAssignments, setLocalRatedAssignments] = useState<string[]>([]);
+  const [userPersonMap, setUserPersonMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Load data from storage
@@ -43,12 +45,13 @@ export function useChoreData() {
 
   const loadData = async () => {
     try {
-      const [choresData, peopleData, assignmentsData, pointsDataStr, ratedAssignments] = await Promise.all([
+      const [choresData, peopleData, assignmentsData, pointsDataStr, ratedAssignments, mapData] = await Promise.all([
         AsyncStorage.getItem(CHORES_KEY),
         AsyncStorage.getItem(PEOPLE_KEY),
         AsyncStorage.getItem(ASSIGNMENTS_KEY),
         AsyncStorage.getItem(POINTS_KEY),
         AsyncStorage.getItem(RATED_KEY),
+        AsyncStorage.getItem(USER_PERSON_MAP_KEY),
       ]);
 
       if (choresData) setChores(JSON.parse(choresData));
@@ -56,6 +59,7 @@ export function useChoreData() {
       if (assignmentsData) setAssignments(JSON.parse(assignmentsData));
       if (pointsDataStr) setPointsData(JSON.parse(pointsDataStr));
       if (ratedAssignments) setLocalRatedAssignments(JSON.parse(ratedAssignments));
+      if (mapData) setUserPersonMap(JSON.parse(mapData));
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -106,6 +110,41 @@ export function useChoreData() {
     } catch (error) {
       console.error('Error saving rated assignments:', error);
     }
+  };
+
+  const saveUserPersonMap = async (map: Record<string, string>) => {
+    try {
+      await AsyncStorage.setItem(USER_PERSON_MAP_KEY, JSON.stringify(map));
+    } catch (error) {
+      console.error('Error saving user-person map:', error);
+    }
+  };
+
+  const linkUserToPerson = async (username: string, personId: string) => {
+    const key = username.trim().toLowerCase();
+    const updated = { ...userPersonMap, [key]: personId };
+    setUserPersonMap(updated);
+    await saveUserPersonMap(updated);
+  };
+
+  const getPersonForUsername = (username?: string): Person | undefined => {
+    if (!username) return undefined;
+    const key = username.trim().toLowerCase();
+    // 1) mapping takes precedence
+    const mappedId = userPersonMap[key];
+    if (mappedId) {
+      const byId = people.find((p) => p.id === mappedId);
+      if (byId) return byId;
+    }
+    // 2) tolerant name match
+    const uname = key;
+    const exact = people.find((p) => p.name && p.name.trim().toLowerCase() === uname);
+    if (exact) return exact;
+    const contains = people.find((p) => p.name && p.name.trim().toLowerCase().includes(uname));
+    if (contains) return contains;
+    const reverseContains = people.find((p) => p.name && uname.includes(p.name.trim().toLowerCase()));
+    if (reverseContains) return reverseContains;
+    return undefined;
   };
 
   const updatePoints = () => {
@@ -336,6 +375,7 @@ export function useChoreData() {
     assignments,
     pointsData,
     loading,
+    userPersonMap,
     addChore,
     updateChore,
     deleteChore,
@@ -348,5 +388,7 @@ export function useChoreData() {
     hasLocallyRated,
     refreshData,
     getPersonPoints,
+    getPersonForUsername,
+    linkUserToPerson,
   };
 }

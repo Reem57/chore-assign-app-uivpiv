@@ -16,6 +16,12 @@ export default function TabLayout() {
       label: 'Home',
     },
     {
+      name: 'groceries',
+      route: '/(tabs)/groceries',
+      icon: 'cart.fill',
+      label: 'Groceries',
+    },
+    {
       name: 'leaderboard',
       route: '/(tabs)/leaderboard',
       icon: 'list.number',
@@ -36,6 +42,10 @@ export default function TabLayout() {
         <NativeTabs.Trigger name="(home)">
           <Icon sf="house.fill" drawable="ic_home" selectedColor={colors.text} />
           <Label>Home</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="groceries">
+          <Icon sf="cart.fill" drawable="ic_cart" selectedColor={colors.text} />
+          <Label>Groceries</Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="leaderboard">
           <Icon sf="list.number" drawable="ic_leader" selectedColor={colors.text} />
@@ -59,6 +69,7 @@ export default function TabLayout() {
         }}
       >
         <Stack.Screen name="(home)" />
+        <Stack.Screen name="groceries" />
         <Stack.Screen name="leaderboard" />
         <Stack.Screen name="profile" />
       </Stack>

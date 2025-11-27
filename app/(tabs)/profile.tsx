@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Alert } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
-import { colors } from '@/styles/commonStyles';
+import { useThemedStyles } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,8 @@ export default function ProfileScreen() {
   const { chores, people, assignments, getPersonPoints, getPersonForUsername } = useChoreData();
   const { currentUser, isAdmin, logout } = useAuth();
   const router = useRouter();
+  const { colors } = useThemedStyles();
+  const styles = getStyles(colors);
 
   const currentWeek = getWeekNumber(new Date());
   const currentYear = new Date().getFullYear();
@@ -206,13 +208,13 @@ export default function ProfileScreen() {
       </ScrollView>
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  
+  function getStyles(colors: any) {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 48,
@@ -409,3 +411,5 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
 });
+  }
+}

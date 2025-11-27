@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
-import { colors } from '@/styles/commonStyles';
+import { useThemedStyles } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -20,6 +20,8 @@ export default function PeopleScreen() {
   const router = useRouter();
   const { people, addPerson, updatePerson, deletePerson } = useChoreData();
   const { isAdmin, users, setUserPassword, resetUserPassword } = useAuth();
+  const { colors } = useThemedStyles();
+  const styles = getStyles(colors);
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -404,13 +406,13 @@ export default function PeopleScreen() {
       </View>
     </>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  
+  function getStyles(colors: any) {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -705,3 +707,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+  }
+}

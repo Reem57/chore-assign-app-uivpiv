@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Platform, Alert } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
-import { colors } from '@/styles/commonStyles';
+import { useThemedStyles } from '@/styles/commonStyles';
 import { useGroceryData } from '@/hooks/useGroceryData';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function GroceriesScreen() {
   const { groceries, loading, addItem, toggleLike, togglePurchased, deleteItem, clearPurchased } = useGroceryData();
   const { currentUser } = useAuth();
+  const { colors } = useThemedStyles();
+  const styles = getStyles(colors);
   const [newItemName, setNewItemName] = useState('');
 
   const handleAdd = () => {
@@ -206,13 +208,13 @@ export default function GroceriesScreen() {
       </ScrollView>
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  
+  function getStyles(colors: any) {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -401,3 +403,5 @@ const styles = StyleSheet.create({
     padding: 6,
   },
 });
+  }
+}

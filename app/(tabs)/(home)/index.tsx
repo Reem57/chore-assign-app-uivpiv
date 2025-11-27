@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl, ActionSheetIOS } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
+import { useThemedStyles } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
 import { useAuth } from '@/contexts/AuthContext';
 import { getWeekNumber } from '@/utils/choreAssignment';
@@ -13,6 +13,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints, addRating, hasLocallyRated, refreshData, getPersonForUsername, linkUserToPerson, addPerson } = useChoreData();
   const [refreshing, setRefreshing] = useState(false);
+  const { colors } = useThemedStyles();
 
   const onRefresh = async () => {
     try {
@@ -181,6 +182,311 @@ export default function HomeScreen() {
       <Text style={styles.headerUsername}>{currentUser?.username}</Text>
     </View>
   );
+
+  // Dynamic styles based on theme
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    centerContent: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 5,
+      paddingBottom: 16,
+    },
+    scrollContentWithTabBar: {
+      paddingBottom: 100,
+    },
+    loadingText: {
+      fontSize: 18,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    header: {
+      marginTop: 12,
+      marginBottom: 24,
+    },
+    welcomeContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: colors.text,
+      marginRight: 8,
+    },
+    adminBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      gap: 4,
+    },
+    adminBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.card,
+    },
+    headerSubtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      marginBottom: 16,
+    },
+    progressCard: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 20,
+      boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+      elevation: 3,
+    },
+    progressInfo: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    progressLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    progressPercentage: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    progressBarContainer: {
+      height: 8,
+      backgroundColor: colors.accent,
+      borderRadius: 4,
+      overflow: 'hidden',
+      marginBottom: 8,
+    },
+    progressBar: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: 4,
+    },
+    progressText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    userSummaryCard: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+    },
+    userSummaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+    },
+    userSummaryLabel: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    userSummaryValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    detailsButtonText: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    quickActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 24,
+    },
+    actionButton: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      padding: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.1)',
+      elevation: 2,
+    },
+    actionButtonText: {
+      color: colors.card,
+      fontSize: 14,
+      fontWeight: '600',
+      marginTop: 8,
+    },
+    emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 60,
+      paddingHorizontal: 32,
+    },
+    emptyStateTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    emptyStateText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    personCard: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+      boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+      elevation: 3,
+    },
+    personHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    personInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    personAvatar: {
+      marginRight: 12,
+    },
+    personTextContainer: {
+      flex: 1,
+    },
+    personName: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    personStats: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    pointsContainer: {
+      alignItems: 'center',
+    },
+    pointsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.highlight,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+      gap: 4,
+    },
+    pointsText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    pointsLabel: {
+      fontSize: 10,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    noChoresText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+      textAlign: 'center',
+      paddingVertical: 12,
+    },
+    choresList: {
+      gap: 8,
+    },
+    choreItem: {
+      backgroundColor: colors.background,
+      borderRadius: 10,
+      padding: 12,
+      borderWidth: 2,
+      borderColor: colors.accent,
+    },
+    choreItemCompleted: {
+      backgroundColor: colors.highlight,
+      borderColor: colors.success,
+    },
+    choreItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      marginRight: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: colors.success,
+      borderColor: colors.success,
+    },
+    choreTextContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    choreItemText: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: '500',
+      flex: 1,
+    },
+    choreDay: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    choreItemTextCompleted: {
+      textDecorationLine: 'line-through',
+      color: colors.textSecondary,
+    },
+    chorePointsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.card,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    chorePointsText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.warning,
+    },
+    headerButtonContainer: {
+      padding: 8,
+    },
+    headerUsername: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  });
+
 
   if (loading) {
     return (
@@ -445,308 +751,3 @@ export default function HomeScreen() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    // Slight top padding so header sits comfortably without being too low
-    paddingTop: 5,
-    paddingBottom: 16,
-  },
-  scrollContentWithTabBar: {
-    paddingBottom: 100,
-  },
-  loadingText: {
-    fontSize: 18,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  header: {
-    // Small top margin to avoid notch overlay without pushing too far down
-    marginTop: 12,
-    marginBottom: 24,
-  },
-  welcomeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-    marginRight: 8,
-  },
-  adminBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  adminBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.card,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  progressCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  progressInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  progressLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  progressPercentage: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: colors.accent,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  userSummaryCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  userSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  userSummaryLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  userSummaryValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  detailsButtonText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
-  },
-  actionButtonText: {
-    color: colors.card,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-  },
-  emptyStateTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  personCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  personHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  personInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  personAvatar: {
-    marginRight: 12,
-  },
-  personTextContainer: {
-    flex: 1,
-  },
-  personName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  personStats: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  pointsContainer: {
-    alignItems: 'center',
-  },
-  pointsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.highlight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  pointsText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  pointsLabel: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  noChoresText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-  choresList: {
-    gap: 8,
-  },
-  choreItem: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  choreItemCompleted: {
-    backgroundColor: colors.highlight,
-    borderColor: colors.success,
-  },
-  choreItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  choreTextContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  choreItemText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-    flex: 1,
-  },
-  choreDay: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  choreItemTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: colors.textSecondary,
-  },
-  chorePointsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.card,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  chorePointsText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.warning,
-  },
-  headerButtonContainer: {
-    padding: 8,
-  },
-  headerUsername: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-});

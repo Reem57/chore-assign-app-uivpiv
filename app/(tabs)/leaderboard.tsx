@@ -2,12 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
-import { colors } from '@/styles/commonStyles';
+import { useThemedStyles } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
 import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function LeaderboardScreen() {
   const { people, assignments, chores, loading } = useChoreData() as any;
+  const { colors } = useThemedStyles();
+  const styles = getStyles(colors);
   const [sortBy, setSortBy] = useState<'weekly' | 'yearly'>('weekly');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -177,13 +179,13 @@ export default function LeaderboardScreen() {
       </View>
     </>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  
+  function getStyles(colors: any) {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
   center: { justifyContent: 'center', alignItems: 'center' },
   loading: { color: colors.text, fontSize: 16 },
   header: {
@@ -237,3 +239,5 @@ const styles = StyleSheet.create({
   detailPointsBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.card, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 },
   detailPointsText: { fontSize: 12, fontWeight: '700', color: colors.warning },
 });
+  }
+}

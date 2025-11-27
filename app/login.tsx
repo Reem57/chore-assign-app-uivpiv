@@ -13,7 +13,7 @@ import {
   Animated,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
+import { useThemedStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChoreData } from '@/hooks/useChoreData';
@@ -22,6 +22,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { login, signup } = useAuth();
   const { addPerson } = useChoreData();
+  const { colors } = useThemedStyles();
+  const styles = getStyles(colors);
   
   const [isSignup, setIsSignup] = useState(false);
   const [username, setUsername] = useState('');
@@ -224,13 +226,13 @@ export default function LoginScreen() {
       </KeyboardAvoidingView>
     </>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  
+  function getStyles(colors: any) {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -340,9 +342,11 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
   },
-  switchButtonText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-});
+      switchButtonText: {
+        fontSize: 14,
+        color: colors.primary,
+        fontWeight: '600',
+      },
+    });
+  }
+}

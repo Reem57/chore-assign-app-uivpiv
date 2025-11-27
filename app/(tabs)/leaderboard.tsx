@@ -98,7 +98,10 @@ export default function LeaderboardScreen() {
       <Stack.Screen options={{ title: 'Leaderboard' }} />
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Leaderboard</Text>
+          <View style={styles.headerTitleRow}>
+            <IconSymbol name="star.fill" color={colors.warning} size={20} />
+            <Text style={styles.title}>Leaderboard</Text>
+          </View>
           <View style={styles.toggleRow}>
             <Pressable
               style={[styles.toggleButton, sortBy === 'weekly' && styles.toggleButtonActive]}
@@ -185,7 +188,7 @@ const styles = StyleSheet.create({
   loading: { color: colors.text, fontSize: 16 },
   header: {
     // Add a bit more breathing room above and subtle elevation for appeal
-    marginTop: 24,
+    marginTop: 40,
     paddingTop: 25,
     paddingHorizontal: 16,
     paddingBottom: 16,
@@ -197,7 +200,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
-  title: { fontSize: 20, fontWeight: '900', color: colors.text },
+  title: { fontSize: 25, fontWeight: '800', color: colors.text },
   toggleRow: { flexDirection: 'row', marginTop: 12 },
   toggleButton: { padding: 8, borderRadius: 10, marginRight: 8, backgroundColor: colors.background },
   toggleButtonActive: { backgroundColor: colors.primary },
@@ -207,6 +210,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, padding: 12, borderRadius: 12 },
   rankCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.highlight, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   rankText: { fontWeight: '800', color: colors.primary },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   personInfo: { flex: 1 },
   personName: { fontSize: 16, fontWeight: '700', color: colors.text },
   personSub: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },

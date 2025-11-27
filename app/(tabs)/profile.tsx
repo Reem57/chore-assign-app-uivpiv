@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function ProfileScreen() {
-  const { chores, people, assignments, getPersonPoints } = useChoreData();
+  const { chores, people, assignments, getPersonPoints, getPersonForUsername } = useChoreData();
   const { currentUser, isAdmin, logout } = useAuth();
   const router = useRouter();
 
@@ -23,8 +23,8 @@ export default function ProfileScreen() {
   const completedCount = currentAssignments.filter((a) => a.completed).length;
   const totalCount = currentAssignments.length;
 
-  // Get current user's person data
-  const userPerson = people.find((p) => p.name === currentUser?.username);
+  // Get current user's person data (tolerant match)
+  const userPerson = getPersonForUsername(currentUser?.username || undefined) || null;
   const { weeklyPoints, yearlyPoints } = userPerson ? getPersonPoints(userPerson.id) : { weeklyPoints: 0, yearlyPoints: 0 };
 
   const handleLogout = async () => {
@@ -95,8 +95,8 @@ export default function ProfileScreen() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <IconSymbol name="list.bullet" color={colors.primary} size={32} />
-            <Text style={styles.statValue}>{chores.length}</Text>
-            <Text style={styles.statLabel}>Total Chores</Text>
+            <Text style={styles.statValue}>{userPerson ? currentAssignments.filter((a) => a.personId === userPerson.id).length : 0}</Text>
+            <Text style={styles.statLabel}>Chores</Text>
           </View>
 
           <View style={styles.statCard}>

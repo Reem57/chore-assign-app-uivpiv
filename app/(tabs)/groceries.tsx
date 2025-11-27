@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     // Push content slightly lower so headers sit a bit further down
-    paddingTop: 28,
+    paddingTop: 35,
     paddingBottom: 16,
   },
   scrollContentWithTabBar: {

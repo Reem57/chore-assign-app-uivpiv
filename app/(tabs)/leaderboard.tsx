@@ -7,8 +7,9 @@ import { useChoreData } from '@/hooks/useChoreData';
 import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function LeaderboardScreen() {
-  const { people, assignments, chores, loading, getPersonPoints } = useChoreData() as any;
+  const { people, assignments, chores, loading } = useChoreData() as any;
   const [sortBy, setSortBy] = useState<'weekly' | 'yearly'>('weekly');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const now = new Date();
   const currentWeek = getWeekNumber(now);
@@ -47,8 +48,42 @@ export default function LeaderboardScreen() {
 
     // sort
     arr.sort((a, b) => (sortBy === 'weekly' ? b.weekly - a.weekly : b.yearly - a.yearly));
-    return arr;
+    // competition ranking: equal points => equal rank, next rank skips
+    let lastPoints: number | null = null;
+    let lastRank = 0;
+    let position = 0;
+    return arr.map((item) => {
+      position += 1;
+      const points = sortBy === 'weekly' ? item.weekly : item.yearly;
+      if (lastPoints === null || points !== lastPoints) {
+        lastRank = position;
+        lastPoints = points;
+      }
+      return { ...item, rank: lastRank };
+    });
   }, [people, assignments, chores, currentWeek, currentYear, sortBy]);
+
+  const getChoreById = (id: string) => chores.find((c: any) => c.id === id);
+
+  const completedChoresForPerson = (personId: string) => {
+    // Filter completed assignments for selected timeframe
+    return assignments.filter((a: any) => {
+      if (a.personId !== personId || !a.completed) return false;
+      if (sortBy === 'weekly') {
+        return a.year === currentYear && a.weekNumber === currentWeek;
+      }
+      // yearly
+      return a.year === currentYear;
+    }).map((a: any) => {
+      const chore = getChoreById(a.choreId);
+      return {
+        id: a.id,
+        name: chore?.name || `(Unknown chore ${a.choreId})`,
+        points: chore?.points ?? 10,
+        dayOfWeek: a.dayOfWeek,
+      };
+    });
+  };
 
   if (loading) {
     return (
@@ -79,22 +114,62 @@ export default function LeaderboardScreen() {
             </Pressable>
           </View>
         </View>
-
         <ScrollView contentContainerStyle={styles.list}>
-          {totals.map((p: any, idx: number) => (
-            <View key={p.id} style={styles.row}>
-              <View style={styles.rankCircle}>
-                <Text style={styles.rankText}>{idx + 1}</Text>
-              </View>
-              <View style={styles.personInfo}>
-                <Text style={styles.personName}>{p.name}</Text>
-                <Text style={styles.personSub}>{p.weekly} pts this week • {p.yearly} pts this year</Text>
-              </View>
-              <View style={styles.pointsBox}>
-                <Text style={styles.pointsValue}>{sortBy === 'weekly' ? p.weekly : p.yearly}</Text>
-              </View>
+          {totals.length === 0 ? (
+            <View style={styles.emptyState}>
+              <IconSymbol name="list.number" color={colors.textSecondary} size={48} />
+              <Text style={styles.emptyTitle}>Nothing yet</Text>
+              <Text style={styles.emptyText}>Complete chores to climb the leaderboard!</Text>
             </View>
-          ))}
+          ) : (
+            totals.map((p: any) => (
+              <View key={p.id} style={{ marginBottom: 12 }}>
+                <View style={styles.row}>
+                  <View style={[styles.rankCircle, p.rank === 1 && styles.gold, p.rank === 2 && styles.silver, p.rank === 3 && styles.bronze]}>
+                    <Text style={[styles.rankText, p.rank <= 3 && styles.rankTextTop]}>{p.rank}</Text>
+                  </View>
+                  <Pressable style={styles.personInfo} onPress={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                    <Text style={styles.personName}>{p.name}</Text>
+                    <View style={styles.badgesRow}>
+                      <View style={styles.badge}>
+                        <IconSymbol name="star.fill" color={colors.warning} size={12} />
+                        <Text style={styles.badgeText}>{p.weekly} wk</Text>
+                      </View>
+                      <View style={[styles.badge, { backgroundColor: colors.highlight }]}> 
+                        <IconSymbol name="calendar" color={colors.primary} size={12} />
+                        <Text style={styles.badgeText}>{p.yearly} yr</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                  <View style={styles.pointsBox}>
+                    <Text style={styles.pointsValue}>{sortBy === 'weekly' ? p.weekly : p.yearly}</Text>
+                  </View>
+                </View>
+                {expandedId === p.id && (
+                  <View style={styles.detailsBoxBelow}>
+                    {completedChoresForPerson(p.id).length === 0 ? (
+                      <Text style={styles.detailsEmpty}>No completed chores {sortBy === 'weekly' ? 'this week' : 'this year'}.</Text>
+                    ) : (
+                      completedChoresForPerson(p.id).map((c: any) => (
+                        <View key={c.id} style={styles.detailRow}>
+                          <Text style={styles.detailName}>{c.name}</Text>
+                          <View style={styles.detailRight}>
+                            {typeof c.dayOfWeek === 'number' && (
+                              <Text style={styles.detailDay}>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][c.dayOfWeek]}</Text>
+                            )}
+                            <View style={styles.detailPointsBadge}>
+                              <IconSymbol name="star.fill" color={colors.warning} size={12} />
+                              <Text style={styles.detailPointsText}>+{c.points}</Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                )}
+              </View>
+            ))
+          )}
         </ScrollView>
       </View>
     </>
@@ -108,8 +183,21 @@ const styles = StyleSheet.create({
   },
   center: { justifyContent: 'center', alignItems: 'center' },
   loading: { color: colors.text, fontSize: 16 },
-  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.accent, backgroundColor: colors.card, marginTop: 50 },
-  title: { fontSize: 20, fontWeight: '800', color: colors.text },
+  header: {
+    // Add a bit more breathing room above and subtle elevation for appeal
+    marginTop: 24,
+    paddingTop: 25,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.accent,
+    backgroundColor: colors.card,
+    boxShadow: '0px 2px 6px rgba(0,0,0,0.06)',
+    elevation: 2,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  title: { fontSize: 20, fontWeight: '900', color: colors.text },
   toggleRow: { flexDirection: 'row', marginTop: 12 },
   toggleButton: { padding: 8, borderRadius: 10, marginRight: 8, backgroundColor: colors.background },
   toggleButtonActive: { backgroundColor: colors.primary },
@@ -124,4 +212,24 @@ const styles = StyleSheet.create({
   personSub: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
   pointsBox: { minWidth: 64, alignItems: 'flex-end' },
   pointsValue: { fontSize: 16, fontWeight: '800', color: colors.warning },
+  // New UI bits
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 12 },
+  emptyText: { fontSize: 14, color: colors.textSecondary },
+  gold: { backgroundColor: '#FFE8A3' },
+  silver: { backgroundColor: '#E6E6E6' },
+  bronze: { backgroundColor: '#F5C6A5' },
+  rankTextTop: { color: colors.text },
+  badgesRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.background, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { fontSize: 12, fontWeight: '700', color: colors.text },
+  detailsBox: { marginTop: 12, backgroundColor: colors.background, borderRadius: 8, padding: 10, width: '100%' },
+  detailsBoxBelow: { marginTop: 8, marginHorizontal: 16, backgroundColor: colors.background, borderRadius: 8, padding: 10 },
+  detailsEmpty: { color: colors.textSecondary, fontSize: 12, fontStyle: 'italic' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  detailName: { fontSize: 14, color: colors.text, fontWeight: '600', flex: 1, marginRight: 8 },
+  detailRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  detailDay: { fontSize: 12, color: colors.textSecondary },
+  detailPointsBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.card, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 },
+  detailPointsText: { fontSize: 12, fontWeight: '700', color: colors.warning },
 });

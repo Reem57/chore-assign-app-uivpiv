@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   center: { justifyContent: 'center', alignItems: 'center' },
   loading: { color: colors.text, fontSize: 16 },
-  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.accent, backgroundColor: colors.card },
+  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.accent, backgroundColor: colors.card, marginTop: 50 },
   title: { fontSize: 20, fontWeight: '800', color: colors.text },
   toggleRow: { flexDirection: 'row', marginTop: 12 },
   toggleButton: { padding: 8, borderRadius: 10, marginRight: 8, backgroundColor: colors.background },

@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Stack } from 'expo-router';
-import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert } from 'react-native';
+import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
@@ -11,7 +11,19 @@ import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints, addRating, hasLocallyRated } = useChoreData();
+  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints, addRating, hasLocallyRated, refreshData } = useChoreData();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await refreshData();
+    } catch (err) {
+      console.error('Refresh failed', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const { currentUser, isAdmin, logout } = useAuth();
 
   const currentWeek = getWeekNumber(new Date());
@@ -135,6 +147,7 @@ export default function HomeScreen() {
             Platform.OS !== 'ios' && styles.scrollContentWithTabBar,
           ]}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         >
           {/* Header Section */}
           <View style={styles.header}>

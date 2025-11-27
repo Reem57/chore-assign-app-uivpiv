@@ -19,6 +19,7 @@ interface AuthContextType {
   isAdmin: () => boolean;
   setUserPassword: (userId: string, newPassword: string) => Promise<boolean>;
   resetUserPassword: (userId: string) => Promise<string | null>;
+  promoteCurrentUserToAdmin: () => Promise<boolean>;
   loading: boolean;
 }
 
@@ -86,6 +87,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (error) {
       console.error('Error setting user password:', error);
+      return false;
+    }
+  };
+
+  const promoteCurrentUserToAdmin = async () => {
+    try {
+      if (!currentUser) return false;
+      const updatedUser = { ...currentUser, isAdmin: true };
+      // update users list if user exists there
+      const exists = users.find((u) => u.id === currentUser.id);
+      let updatedUsers = users;
+      if (exists) {
+        updatedUsers = users.map((u) => (u.id === currentUser.id ? updatedUser : u));
+        await saveUsers(updatedUsers);
+      } else {
+        // if not in users array, add them
+        updatedUsers = [...users, updatedUser];
+        await saveUsers(updatedUsers);
+      }
+      await saveCurrentUser(updatedUser);
+      return true;
+    } catch (err) {
+      console.error('Failed to promote user to admin', err);
       return false;
     }
   };
@@ -182,6 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         logout,
         isAdmin,
+        promoteCurrentUserToAdmin,
         setUserPassword,
         resetUserPassword,
         loading,

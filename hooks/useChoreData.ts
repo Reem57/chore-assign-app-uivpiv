@@ -63,6 +63,11 @@ export function useChoreData() {
     }
   };
 
+  const refreshData = async () => {
+    setLoading(true);
+    await loadData();
+  };
+
   const saveChores = async (newChores: Chore[]) => {
     try {
       await AsyncStorage.setItem(CHORES_KEY, JSON.stringify(newChores));
@@ -341,6 +346,7 @@ export function useChoreData() {
     reassignChores,
     addRating,
     hasLocallyRated,
+    refreshData,
     getPersonPoints,
   };
 }

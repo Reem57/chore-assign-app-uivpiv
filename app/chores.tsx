@@ -136,12 +136,17 @@ export default function ChoresScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reassign',
-          onPress: () => {
-            console.log('Before reassign - People:', people.length, 'Chores:', chores.length);
-            console.log('Chores details:', chores.map(c => ({ name: c.name, timesPerWeek: c.timesPerWeek })));
-            reassignChores();
-            console.log('After reassign - Assignments count:', assignments.length);
-            Alert.alert('Success', 'Chores have been reassigned!');
+          onPress: async () => {
+            try {
+              console.log('Before reassign - People:', people.length, 'Chores:', chores.length);
+              console.log('Chores details:', chores.map(c => ({ name: c.name, timesPerWeek: c.timesPerWeek })));
+              const count = await reassignChores();
+              console.log('After reassign - new assignments for current week:', count);
+              Alert.alert('Success', `Chores have been reassigned (${count} assignments created)`);
+            } catch (err) {
+              console.error('Reassign failed', err);
+              Alert.alert('Error', 'Failed to reassign chores. Check logs for details.');
+            }
           },
         },
       ]

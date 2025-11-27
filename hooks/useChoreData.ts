@@ -295,7 +295,7 @@ export function useChoreData() {
     saveAssignments(updatedAssignments);
   };
 
-  const reassignChores = () => {
+  const reassignChores = async () => {
     // Force create new assignments for current week only, clearing all current week assignments
     const now = new Date();
     const currentWeek = getWeekNumber(now);
@@ -316,7 +316,13 @@ export function useChoreData() {
     console.log('Current week assignments:', newCurrentWeekAssignments.length);
     
     setAssignments(allAssignments);
-    saveAssignments(allAssignments);
+    try {
+      await saveAssignments(allAssignments);
+    } catch (err) {
+      console.error('Failed saving assignments after reassign:', err);
+      throw err;
+    }
+    return allAssignments.length;
   };
 
   return {

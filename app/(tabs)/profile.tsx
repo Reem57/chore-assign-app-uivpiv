@@ -192,10 +192,12 @@ export default function ProfileScreen() {
         </View>
 
         {/* Logout Button */}
-        <Pressable style={styles.logoutButton} onPress={() => router.push('/debug')}>
-          <IconSymbol name="wrench.and.screwdriver" color={colors.primary} size={20} />
-          <Text style={styles.logoutButtonText}>Show Storage (Debug)</Text>
-        </Pressable>
+        {currentUser?.username === 'Reem' && (
+          <Pressable style={styles.logoutButton} onPress={() => router.push('/debug')}>
+            <IconSymbol name="wrench.and.screwdriver" color={colors.primary} size={20} />
+            <Text style={styles.logoutButtonText}>Show Storage (Debug)</Text>
+          </Pressable>
+        )}
 
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <IconSymbol name="rectangle.portrait.and.arrow.right" color={colors.danger} size={20} />

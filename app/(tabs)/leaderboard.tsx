@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
 import { Stack } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useThemedStyles } from '@/styles/commonStyles';
@@ -12,10 +12,35 @@ export default function LeaderboardScreen() {
   const styles = getStyles(colors);
   const [sortBy, setSortBy] = useState<'weekly' | 'yearly'>('weekly');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [fadeAnim] = useState(new Animated.Value(1));
+  const [slideAnim] = useState(new Animated.Value(0));
 
   const now = new Date();
   const currentWeek = getWeekNumber(now);
   const currentYear = now.getFullYear();
+
+  const handleSortChange = (newSort: 'weekly' | 'yearly') => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0.6,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(slideAnim, {
+        toValue: newSort === 'yearly' ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    setSortBy(newSort);
+  };
 
   // Compute totals without applying rating penalties: sum base chore.points for completed assignments
   const totals = useMemo(() => {
@@ -100,26 +125,48 @@ export default function LeaderboardScreen() {
       <Stack.Screen options={{ title: 'Leaderboard' }} />
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.headerTitleRow}>
-            <IconSymbol name="star.fill" color={colors.warning} size={20} />
-            <Text style={styles.title}>Leaderboard</Text>
+          <View style={styles.headerContent}>
+            <View style={styles.headerIcon}>
+              <IconSymbol name="star.fill" color={colors.card} size={32} />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Leaderboard</Text>
+            </View>
           </View>
           <View style={styles.toggleRow}>
-            <Pressable
-              style={[styles.toggleButton, sortBy === 'weekly' && styles.toggleButtonActive]}
-              onPress={() => setSortBy('weekly')}
-            >
-              <Text style={[styles.toggleText, sortBy === 'weekly' && styles.toggleTextActive]}>This Week</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.toggleButton, sortBy === 'yearly' && styles.toggleButtonActive]}
-              onPress={() => setSortBy('yearly')}
-            >
-              <Text style={[styles.toggleText, sortBy === 'yearly' && styles.toggleTextActive]}>This Year</Text>
-            </Pressable>
+            <View style={styles.toggleButtonWrapper}>
+              <Animated.View
+                style={[
+                  styles.toggleButtonBackground,
+                  {
+                    transform: [
+                      {
+                        translateX: slideAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, 172],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+              <Pressable
+                style={styles.toggleButton}
+                onPress={() => handleSortChange('weekly')}
+              >
+                <Text style={[styles.toggleText, sortBy === 'weekly' && styles.toggleTextActive]}>This Week</Text>
+              </Pressable>
+              <Pressable
+                style={styles.toggleButton}
+                onPress={() => handleSortChange('yearly')}
+              >
+                <Text style={[styles.toggleText, sortBy === 'yearly' && styles.toggleTextActive]}>This Year</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
         <ScrollView contentContainerStyle={styles.list}>
+          <Animated.View style={{ opacity: fadeAnim }}>
           {totals.length === 0 ? (
             <View style={styles.emptyState}>
               <IconSymbol name="list.number" color={colors.textSecondary} size={48} />
@@ -175,6 +222,7 @@ export default function LeaderboardScreen() {
               </View>
             ))
           )}
+          </Animated.View>
         </ScrollView>
       </View>
     </>
@@ -189,26 +237,49 @@ export default function LeaderboardScreen() {
   center: { justifyContent: 'center', alignItems: 'center' },
   loading: { color: colors.text, fontSize: 16 },
   header: {
-    // Add a bit more breathing room above and subtle elevation for appeal
-    marginTop: 40,
-    paddingTop: 25,
+    backgroundColor: colors.primary,
+    paddingTop: 50,
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.accent,
-    backgroundColor: colors.card,
-    boxShadow: '0px 2px 6px rgba(0,0,0,0.06)',
-    elevation: 2,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.12)',
+    elevation: 4,
   },
-  title: { fontSize: 25, fontWeight: '800', color: colors.text },
-  toggleRow: { flexDirection: 'row', marginTop: 12 },
-  toggleButton: { padding: 8, borderRadius: 10, marginRight: 8, backgroundColor: colors.background },
-  toggleButtonActive: { backgroundColor: colors.primary },
-  toggleText: { color: colors.textSecondary, fontWeight: '700' },
-  toggleTextActive: { color: colors.card },
-  list: { padding: 16, gap: 12 },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  title: { fontSize: 28, fontWeight: '800', color: colors.card },
+  subtitle: { fontSize: 14, color: 'rgba(255, 255, 255, 0.8)', marginTop: 4 },
+  toggleRow: { flexDirection: 'row', gap: 10, backgroundColor: 'rgba(255, 255, 255, 0.15)', padding: 4, borderRadius: 12 },
+  toggleButtonWrapper: { flexDirection: 'row', position: 'relative', flex: 1, borderRadius: 10, overflow: 'hidden' },
+  toggleButtonBackground: {
+    position: 'absolute',
+    left: 4,
+    top: 4,
+    bottom: 4,
+    width: '48%',
+    backgroundColor: colors.card,
+    borderRadius: 10,
+  },
+  toggleButton: { flex: 1, padding: 10, alignItems: 'center', zIndex: 1 },
+  toggleText: { color: 'rgba(255, 255, 255, 0.7)', fontWeight: '700', fontSize: 13 },
+  toggleTextActive: { color: colors.primary },
+  list: { padding: 16, gap: 12, paddingTop: 20 },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, padding: 12, borderRadius: 12 },
   rankCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.highlight, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   rankText: { fontWeight: '800', color: colors.primary },

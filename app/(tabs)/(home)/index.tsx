@@ -11,7 +11,7 @@ import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints } = useChoreData();
+  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints, addRating, hasLocallyRated } = useChoreData();
   const { currentUser, isAdmin, logout } = useAuth();
 
   const currentWeek = getWeekNumber(new Date());
@@ -306,10 +306,37 @@ export default function HomeScreen() {
                                       {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][assignment.dayOfWeek]}
                                     </Text>
                                   )}
-                                  <View style={styles.chorePointsBadge}>
+                                            <View style={styles.chorePointsBadge}>
                                     <IconSymbol name="star.fill" color={colors.warning} size={12} />
                                     <Text style={styles.chorePointsText}>+{chore.points || 10}</Text>
                                   </View>
+                                            {/* Rating button for other users to anonymously rate this completed assignment */}
+                                            {assignment.completed && userPerson && userPerson.id !== person.id && !hasLocallyRated(assignment.id) && (
+                                              <Pressable
+                                                style={{ paddingHorizontal: 8 }}
+                                                onPress={() => {
+                                                  // present rating choices 1-5
+                                                  Alert.alert(
+                                                    'Rate this chore',
+                                                    `How well was "${chore.name}" done? (anonymous)` ,
+                                                    [
+                                                      { text: '1', onPress: () => { addRating(assignment.id, 1); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                                      { text: '2', onPress: () => { addRating(assignment.id, 2); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                                      { text: '3', onPress: () => { addRating(assignment.id, 3); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                                      { text: '4', onPress: () => { addRating(assignment.id, 4); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                                      { text: '5', onPress: () => { addRating(assignment.id, 5); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                                      { text: 'Cancel', style: 'cancel' },
+                                                    ],
+                                                    { cancelable: true }
+                                                  );
+                                                }}
+                                              >
+                                                <Text style={[styles.detailsButtonText, { color: colors.danger }]}>Rate</Text>
+                                              </Pressable>
+                                            )}
+                                            {assignment.completed && hasLocallyRated(assignment.id) && (
+                                              <Text style={[styles.detailsButtonText, { color: colors.textSecondary }]}>Rated</Text>
+                                            )}
                                 </View>
                               </View>
                             </Pressable>

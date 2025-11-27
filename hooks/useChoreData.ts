@@ -8,12 +8,14 @@ const CHORES_KEY = '@chores';
 const PEOPLE_KEY = '@people';
 const ASSIGNMENTS_KEY = '@assignments';
 const POINTS_KEY = '@points';
+const RATED_KEY = '@rated_assignments';
 
 export function useChoreData() {
   const [chores, setChores] = useState<Chore[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [pointsData, setPointsData] = useState<PointsData[]>([]);
+  const [localRatedAssignments, setLocalRatedAssignments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load data from storage
@@ -41,17 +43,19 @@ export function useChoreData() {
 
   const loadData = async () => {
     try {
-      const [choresData, peopleData, assignmentsData, pointsDataStr] = await Promise.all([
+      const [choresData, peopleData, assignmentsData, pointsDataStr, ratedAssignments] = await Promise.all([
         AsyncStorage.getItem(CHORES_KEY),
         AsyncStorage.getItem(PEOPLE_KEY),
         AsyncStorage.getItem(ASSIGNMENTS_KEY),
         AsyncStorage.getItem(POINTS_KEY),
+        AsyncStorage.getItem(RATED_KEY),
       ]);
 
       if (choresData) setChores(JSON.parse(choresData));
       if (peopleData) setPeople(JSON.parse(peopleData));
       if (assignmentsData) setAssignments(JSON.parse(assignmentsData));
       if (pointsDataStr) setPointsData(JSON.parse(pointsDataStr));
+      if (ratedAssignments) setLocalRatedAssignments(JSON.parse(ratedAssignments));
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -91,6 +95,14 @@ export function useChoreData() {
     }
   };
 
+  const saveLocalRated = async (rated: string[]) => {
+    try {
+      await AsyncStorage.setItem(RATED_KEY, JSON.stringify(rated));
+    } catch (error) {
+      console.error('Error saving rated assignments:', error);
+    }
+  };
+
   const updatePoints = () => {
     const now = new Date();
     const currentWeek = getWeekNumber(now);
@@ -108,7 +120,18 @@ export function useChoreData() {
       );
       const weeklyPoints = weeklyAssignments.reduce((sum, a) => {
         const chore = chores.find((c) => c.id === a.choreId);
-        return sum + (chore?.points || 10);
+        const base = chore?.points || 10;
+        // If there are ratings, compute average and apply penalty if avg < 3
+        const ratings = a.ratings || [];
+        let penalty = 0;
+        if (ratings.length > 0) {
+          const avg = ratings.reduce((s, r) => s + r, 0) / ratings.length;
+          if (avg < 3) {
+            penalty = Math.round((3 - avg) * base);
+          }
+        }
+        const net = Math.max(0, base - penalty);
+        return sum + net;
       }, 0);
 
       // Calculate yearly points (all completed assignments this year)
@@ -117,7 +140,17 @@ export function useChoreData() {
       );
       const yearlyPoints = yearlyAssignments.reduce((sum, a) => {
         const chore = chores.find((c) => c.id === a.choreId);
-        return sum + (chore?.points || 10);
+        const base = chore?.points || 10;
+        const ratings = a.ratings || [];
+        let penalty = 0;
+        if (ratings.length > 0) {
+          const avg = ratings.reduce((s, r) => s + r, 0) / ratings.length;
+          if (avg < 3) {
+            penalty = Math.round((3 - avg) * base);
+          }
+        }
+        const net = Math.max(0, base - penalty);
+        return sum + net;
       }, 0);
 
       updatedPointsData.push({
@@ -132,6 +165,33 @@ export function useChoreData() {
 
     setPointsData(updatedPointsData);
     savePointsData(updatedPointsData);
+  };
+
+  const addRating = (assignmentId: string, rating: number) => {
+    // rating should be 1..5
+    if (rating < 1 || rating > 5) return;
+
+    const updatedAssignments = assignments.map((a) => {
+      if (a.id === assignmentId) {
+        const existing = a.ratings || [];
+        return { ...a, ratings: [...existing, rating] };
+      }
+      return a;
+    });
+
+    setAssignments(updatedAssignments);
+    saveAssignments(updatedAssignments);
+
+    // Mark locally rated to prevent duplicate ratings from this device
+    if (!localRatedAssignments.includes(assignmentId)) {
+      const next = [...localRatedAssignments, assignmentId];
+      setLocalRatedAssignments(next);
+      saveLocalRated(next);
+    }
+  };
+
+  const hasLocallyRated = (assignmentId: string) => {
+    return localRatedAssignments.includes(assignmentId);
   };
 
   const getPersonPoints = (personId: string) => {
@@ -273,6 +333,8 @@ export function useChoreData() {
     deletePerson,
     toggleChoreCompletion,
     reassignChores,
+    addRating,
+    hasLocallyRated,
     getPersonPoints,
   };
 }

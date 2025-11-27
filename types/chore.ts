@@ -30,6 +30,8 @@ export interface Assignment {
   completedAt?: number;
   dayOfWeek?: number; // 0 = Sunday, 6 = Saturday
   points?: number;
+  // Anonymous ratings left by other users for this assignment (values 1-5)
+  ratings?: number[];
 }
 
 export interface User {

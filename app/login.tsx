@@ -88,10 +88,10 @@ export default function LoginScreen() {
 
     if (success) {
       // Add the person to the people list
-      addPerson(name.trim());
+      await addPerson(name.trim());
       router.replace('/(tabs)/' as any);
     } else {
-      Alert.alert('Error', 'Username already exists');
+      Alert.alert('Error', 'Sign up failed. Username may already exist or contain invalid characters.');
     }
   };
 
@@ -180,15 +180,6 @@ export default function LoginScreen() {
                 </Pressable>
               </View>
             </View>
-
-            {isSignup && (
-              <View style={styles.infoBox}>
-                <IconSymbol name="info.circle.fill" color={colors.primary} size={20} />
-                <Text style={styles.infoText}>
-                  Only the administrator can manage chores and add people. Regular users can view and complete their assigned chores.
-                </Text>
-              </View>
-            )}
 
             <Animated.View
               style={{

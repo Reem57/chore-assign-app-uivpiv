@@ -1,39 +1,44 @@
 import { useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroceryItem } from '@/types/grocery';
-
-const GROCERIES_KEY = '@groceries';
+import { groceriesService } from '@/services/groceries.service';
+import { useAuth } from '@/contexts/AuthContext';
+import { auth } from '@/services/firebase.config';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export function useGroceryData() {
+  const { loading: authLoading } = useAuth();
+  const [firebaseAuthed, setFirebaseAuthed] = useState<boolean>(!!auth.currentUser);
   const [groceries, setGroceries] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Track Firebase auth
   useEffect(() => {
-    loadGroceries();
+    const unsub = onAuthStateChanged(auth, (u) => setFirebaseAuthed(!!u));
+    return unsub;
   }, []);
 
-  const loadGroceries = async () => {
-    try {
-      const data = await AsyncStorage.getItem(GROCERIES_KEY);
-      if (data) {
-        setGroceries(JSON.parse(data));
-      }
-    } catch (error) {
-      console.error('Error loading groceries:', error);
-    } finally {
+  // Subscribe to real-time updates from Firebase once authenticated
+  useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+    if (!firebaseAuthed) {
+      // Not authenticated with Firebase; don't subscribe but don't block UI
       setLoading(false);
+      setGroceries([]);
+      return;
     }
-  };
 
-  const saveGroceries = async (items: GroceryItem[]) => {
-    try {
-      await AsyncStorage.setItem(GROCERIES_KEY, JSON.stringify(items));
-    } catch (error) {
-      console.error('Error saving groceries:', error);
-    }
-  };
+    const unsubscribe = groceriesService.subscribeToGroceries((updatedGroceries) => {
+      setGroceries(updatedGroceries);
+      setLoading(false);
+    });
 
-  const addItem = (name: string, username: string, personId?: string) => {
+    return unsubscribe;
+  }, [authLoading, firebaseAuthed]);
+
+  const addItem = async (name: string, username: string, personId?: string) => {
     const newItem: GroceryItem = {
       id: Date.now().toString(),
       name: name.trim(),
@@ -43,52 +48,42 @@ export function useGroceryData() {
       createdAt: Date.now(),
       purchased: false,
     };
-    const updated = [...groceries, newItem];
-    setGroceries(updated);
-    saveGroceries(updated);
+    await groceriesService.addGroceryItem(newItem);
   };
 
-  const toggleLike = (itemId: string, username: string) => {
-    const updated = groceries.map((item) => {
-      if (item.id === itemId) {
-        const likedBy = item.likedBy.includes(username)
-          ? item.likedBy.filter((u) => u !== username)
-          : [...item.likedBy, username];
-        return { ...item, likedBy };
-      }
-      return item;
-    });
-    setGroceries(updated);
-    saveGroceries(updated);
+  const toggleLike = async (itemId: string, username: string) => {
+    const item = groceries.find((g) => g.id === itemId);
+    if (!item) return;
+
+    const likedBy = item.likedBy.includes(username)
+      ? item.likedBy.filter((u) => u !== username)
+      : [...item.likedBy, username];
+
+    await groceriesService.updateGroceryItem(itemId, { likedBy });
   };
 
-  const togglePurchased = (itemId: string, username: string) => {
-    const updated = groceries.map((item) => {
-      if (item.id === itemId) {
-        const purchased = !item.purchased;
-        return {
-          ...item,
-          purchased,
-          purchasedAt: purchased ? Date.now() : undefined,
-          purchasedBy: purchased ? username : undefined,
-        };
-      }
-      return item;
-    });
-    setGroceries(updated);
-    saveGroceries(updated);
+  const togglePurchased = async (itemId: string, username: string) => {
+    const item = groceries.find((g) => g.id === itemId);
+    if (!item) return;
+
+    const purchased = !item.purchased;
+    const updates: any = { purchased };
+    
+    if (purchased) {
+      updates.purchasedAt = Date.now();
+      updates.purchasedBy = username;
+    }
+    // If unpurchasing, the updateGroceryItem function will filter out undefined values
+    
+    await groceriesService.updateGroceryItem(itemId, updates);
   };
 
-  const deleteItem = (itemId: string) => {
-    const updated = groceries.filter((item) => item.id !== itemId);
-    setGroceries(updated);
-    saveGroceries(updated);
+  const deleteItem = async (itemId: string) => {
+    await groceriesService.deleteGroceryItem(itemId);
   };
 
-  const clearPurchased = () => {
-    const updated = groceries.filter((item) => !item.purchased);
-    setGroceries(updated);
-    saveGroceries(updated);
+  const clearPurchased = async () => {
+    await groceriesService.clearPurchasedItems();
   };
 
   return {

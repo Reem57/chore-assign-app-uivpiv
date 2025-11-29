@@ -1,14 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '@/types/chore';
-
-const USERS_KEY = '@users';
-const CURRENT_USER_KEY = '@current_user';
-
-// Hardcoded admin credentials — change these to your preferred admin username/password
-const ADMIN_USERNAME = 'Reem';
-const ADMIN_PASSWORD = '110506';
+import { authService } from '@/services/auth.service';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -19,7 +12,6 @@ interface AuthContextType {
   isAdmin: () => boolean;
   setUserPassword: (userId: string, newPassword: string) => Promise<boolean>;
   resetUserPassword: (userId: string) => Promise<string | null>;
-  promoteCurrentUserToAdmin: () => Promise<boolean>;
   loading: boolean;
 }
 
@@ -31,170 +23,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAuthData();
+    // Listen for auth state changes
+    const unsubscribe = authService.onAuthStateChange(async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in; load their profile without re-authenticating
+        const user = await authService.getUserByUid(firebaseUser.uid);
+        setCurrentUser(user);
+        // Only admins need the full user list
+        if (user?.isAdmin) {
+          await loadUsers();
+        } else {
+          setUsers([]);
+        }
+      } else {
+        setCurrentUser(null);
+        setUsers([]);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
-  const loadAuthData = async () => {
-    try {
-      const [usersData, currentUserData] = await Promise.all([
-        AsyncStorage.getItem(USERS_KEY),
-        AsyncStorage.getItem(CURRENT_USER_KEY),
-      ]);
-
-      if (usersData) {
-        setUsers(JSON.parse(usersData));
-      }
-      if (currentUserData) {
-        setCurrentUser(JSON.parse(currentUserData));
-      }
-    } catch (error) {
-      console.error('Error loading auth data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveUsers = async (newUsers: User[]) => {
-    try {
-      await AsyncStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
-      setUsers(newUsers);
-    } catch (error) {
-      console.error('Error saving users:', error);
-    }
-  };
-
-  const saveCurrentUser = async (user: User | null) => {
-    try {
-      if (user) {
-        await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-      } else {
-        await AsyncStorage.removeItem(CURRENT_USER_KEY);
-      }
-      setCurrentUser(user);
-    } catch (error) {
-      console.error('Error saving current user:', error);
-    }
-  };
-
-  const setUserPassword = async (userId: string, newPassword: string) => {
-    try {
-      const updatedUsers = users.map((u) => (u.id === userId ? { ...u, password: newPassword } : u));
-      await saveUsers(updatedUsers);
-      // If the current user changed their own password, update currentUser
-      if (currentUser && currentUser.id === userId) {
-        await saveCurrentUser({ ...currentUser, password: newPassword });
-      }
-      return true;
-    } catch (error) {
-      console.error('Error setting user password:', error);
-      return false;
-    }
-  };
-
-  const promoteCurrentUserToAdmin = async () => {
-    try {
-      if (!currentUser) return false;
-      const updatedUser = { ...currentUser, isAdmin: true };
-      // update users list if user exists there
-      const exists = users.find((u) => u.id === currentUser.id);
-      let updatedUsers = users;
-      if (exists) {
-        updatedUsers = users.map((u) => (u.id === currentUser.id ? updatedUser : u));
-        await saveUsers(updatedUsers);
-      } else {
-        // if not in users array, add them
-        updatedUsers = [...users, updatedUser];
-        await saveUsers(updatedUsers);
-      }
-      await saveCurrentUser(updatedUser);
-      return true;
-    } catch (err) {
-      console.error('Failed to promote user to admin', err);
-      return false;
-    }
-  };
-
-  const resetUserPassword = async (userId: string) => {
-    try {
-      // generate a temporary 8-character alphanumeric password
-      const temp = Math.random().toString(36).slice(-8) + Math.floor(Math.random() * 90 + 10).toString();
-      const updatedUsers = users.map((u) => (u.id === userId ? { ...u, password: temp } : u));
-      await saveUsers(updatedUsers);
-      if (currentUser && currentUser.id === userId) {
-        await saveCurrentUser({ ...currentUser, password: temp });
-      }
-      return temp;
-    } catch (error) {
-      console.error('Error resetting user password:', error);
-      return null;
-    }
+  const loadUsers = async () => {
+    const allUsers = await authService.getAllUsers();
+    setUsers(allUsers);
   };
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Check if trying to login as admin
-    if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase() && password === ADMIN_PASSWORD) {
-      const adminUser: User = {
-        id: 'admin_id',
-        username: ADMIN_USERNAME,
-        password: ADMIN_PASSWORD,
-        personId: 'admin_person_id',
-        isAdmin: true,
-        createdAt: Date.now(),
-      };
-      await saveCurrentUser(adminUser);
-      return true;
-    }
-
-    // Check regular users
-    const user = users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password
-    );
-
+    const user = await authService.signIn(username, password);
     if (user) {
-      await saveCurrentUser(user);
+      setCurrentUser(user);
       return true;
     }
     return false;
   };
 
   const signup = async (username: string, password: string, name: string): Promise<boolean> => {
-    // Prevent signup with admin username
-    if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
-      return false;
+    const user = await authService.signUp(username, password, name);
+    if (user) {
+      setCurrentUser(user);
+      await loadUsers();
+      return true;
     }
-
-    // Check if username already exists
-    const existingUser = users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase()
-    );
-
-    if (existingUser) {
-      return false;
-    }
-
-    // All new signups are regular users (not admin)
-    const newUser: User = {
-      id: Date.now().toString(),
-      username,
-      password,
-      personId: Date.now().toString() + '_person',
-      isAdmin: false,
-      createdAt: Date.now(),
-    };
-
-    const updatedUsers = [...users, newUser];
-    await saveUsers(updatedUsers);
-    await saveCurrentUser(newUser);
-
-    return true;
+    return false;
   };
 
   const logout = async () => {
-    await saveCurrentUser(null);
+    await authService.signOut();
+    setCurrentUser(null);
   };
 
   const isAdmin = () => {
     return currentUser?.isAdmin || false;
+  };
+
+  const setUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
+    const success = await authService.updateUserPassword(userId, newPassword);
+    if (success && currentUser?.id === userId) {
+      setCurrentUser({ ...currentUser, password: newPassword });
+    }
+    await loadUsers();
+    return success;
+  };
+
+  const resetUserPassword = async (userId: string): Promise<string | null> => {
+    const temp = await authService.resetUserPassword(userId);
+    if (temp && currentUser?.id === userId) {
+      setCurrentUser({ ...currentUser, password: temp });
+    }
+    await loadUsers();
+    return temp;
   };
 
   return (
@@ -206,7 +105,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         logout,
         isAdmin,
-        promoteCurrentUserToAdmin,
         setUserPassword,
         resetUserPassword,
         loading,

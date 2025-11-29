@@ -5,7 +5,7 @@ import { useChoreData } from '@/hooks/useChoreData';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/commonStyles';
 import { getWeekNumber } from '@/utils/choreAssignment';
-import { useer } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 const styles = StyleSheet.create({
   container: {

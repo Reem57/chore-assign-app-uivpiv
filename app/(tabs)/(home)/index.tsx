@@ -11,7 +11,7 @@ import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { chores, people, assignments, loading, toggleChoreCompletion, getPersonPoints, addRating, hasLocallyRated, refreshData, getPersonForUsername, linkUserToPerson, addPerson } = useChoreData();
+  const { chores, people, assignments, loading, toggleChoreCompletion, canCompleteTask, getPersonPoints, addRating, hasLocallyRated, refreshData, getPersonForUsername, linkUserToPerson, addPerson } = useChoreData();
   const [refreshing, setRefreshing] = useState(false);
   const { colors } = useThemedStyles();
 
@@ -424,6 +424,15 @@ export default function HomeScreen() {
       backgroundColor: colors.highlight,
       borderColor: colors.success,
     },
+    choreItemLocked: {
+      opacity: 0.5,
+      backgroundColor: colors.accent,
+    },
+    choreItemPastDue: {
+      opacity: 0.6,
+      backgroundColor: '#ffebee',
+      borderColor: colors.danger,
+    },
     choreItemContent: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -661,6 +670,10 @@ export default function HomeScreen() {
                           const chore = getChoreById(assignment.choreId);
                           const choreName = chore?.name || `(Unknown chore ${assignment.choreId})`;
                           const chorePoints = chore?.points ?? 10;
+                          const taskStatus = canCompleteTask(assignment);
+                          const isLocked = !taskStatus.canComplete && !assignment.completed;
+                          const isPastDue = taskStatus.reason === 'past' && !assignment.completed;
+                          const isFuture = taskStatus.reason === 'future';
 
                           return (
                             <Pressable
@@ -668,8 +681,27 @@ export default function HomeScreen() {
                               style={[
                                 styles.choreItem,
                                 assignment.completed && styles.choreItemCompleted,
+                                isLocked && styles.choreItemLocked,
+                                isPastDue && styles.choreItemPastDue,
                               ]}
-                              onPress={() => toggleChoreCompletion(assignment.id)}
+                              onPress={() => {
+                                if (isLocked) {
+                                  if (isFuture) {
+                                    Alert.alert(
+                                      'Not Available Yet',
+                                      `This task is scheduled for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][assignment.dayOfWeek!]}. You can only complete it on that day.`
+                                    );
+                                  } else if (isPastDue) {
+                                    Alert.alert(
+                                      'Task Overdue',
+                                      `This task was due on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][assignment.dayOfWeek!]}. It can no longer be completed.`
+                                    );
+                                  }
+                                  return;
+                                }
+                                toggleChoreCompletion(assignment.id);
+                              }}
+                              disabled={isLocked}
                             >
                               <View style={styles.choreItemContent}>
                                 <View
@@ -678,8 +710,14 @@ export default function HomeScreen() {
                                     assignment.completed && styles.checkboxChecked,
                                   ]}
                                 >
-                                  {assignment.completed && (
+                                  {assignment.completed ? (
                                     <IconSymbol name="checkmark" color={colors.card} size={16} />
+                                  ) : isLocked && (
+                                    <IconSymbol 
+                                      name={isPastDue ? "xmark" : "lock.fill"} 
+                                      color={isPastDue ? colors.danger : colors.textSecondary} 
+                                      size={14} 
+                                    />
                                   )}
                                 </View>
                                 <View style={styles.choreTextContainer}>
@@ -687,9 +725,12 @@ export default function HomeScreen() {
                                     style={[
                                       styles.choreItemText,
                                       assignment.completed && styles.choreItemTextCompleted,
+                                      isLocked && { color: colors.textSecondary },
                                     ]}
                                   >
                                     {choreName}
+                                    {isFuture && ' 🔒'}
+                                    {isPastDue && ' ⚠️'}
                                   </Text>
                                   {/* Details button to view description */}
                                   <Pressable

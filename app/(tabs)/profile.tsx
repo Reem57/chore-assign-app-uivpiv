@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Alert, TextInput } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useThemedStyles } from '@/styles/commonStyles';
 import { useChoreData } from '@/hooks/useChoreData';
@@ -10,10 +10,13 @@ import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function ProfileScreen() {
   const { chores, people, assignments, getPersonPoints, getPersonForUsername } = useChoreData();
-  const { currentUser, isAdmin, logout } = useAuth();
+  const { currentUser, isAdmin, logout, setUserPassword } = useAuth();
   const router = useRouter();
   const { colors } = useThemedStyles();
   const styles = getStyles(colors);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const currentWeek = getWeekNumber(new Date());
   const currentYear = new Date().getFullYear();
@@ -45,6 +48,36 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword.trim()) {
+      Alert.alert('Error', 'Please enter a new password');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (!currentUser?.id) return;
+
+    const success = await setUserPassword(currentUser.id, newPassword);
+    
+    if (success) {
+      Alert.alert('Success', 'Password updated successfully');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordChange(false);
+    } else {
+      Alert.alert('Error', 'Failed to update password');
+    }
   };
 
   return (
@@ -128,68 +161,60 @@ export default function ProfileScreen() {
             
             <View style={styles.divider} />
             
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Role</Text>
-              <Text style={styles.infoValue}>
-                {isAdmin() ? 'Administrator' : 'Member'}
-              </Text>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Member Since</Text>
-              <Text style={styles.infoValue}>
-                {new Date(currentUser?.createdAt || Date.now()).toLocaleDateString()}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Permissions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Permissions</Text>
-          
-          <View style={styles.infoCard}>
-            <View style={styles.permissionRow}>
-              <View style={styles.permissionInfo}>
-                <IconSymbol name="list.bullet" color={colors.text} size={20} />
-                <Text style={styles.permissionLabel}>Manage Chores</Text>
+            <Pressable 
+              style={styles.infoRow}
+              onPress={() => setShowPasswordChange(!showPasswordChange)}
+            >
+              <Text style={styles.infoLabel}>Password</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.infoValue}>••••••••</Text>
+                <IconSymbol name="pencil" color={colors.primary} size={16} />
               </View>
-              <View style={[styles.permissionBadge, isAdmin() && styles.permissionBadgeActive]}>
-                <Text style={[styles.permissionBadgeText, isAdmin() && styles.permissionBadgeTextActive]}>
-                  {isAdmin() ? 'Allowed' : 'Denied'}
-                </Text>
-              </View>
-            </View>
+            </Pressable>
             
-            <View style={styles.divider} />
-            
-            <View style={styles.permissionRow}>
-              <View style={styles.permissionInfo}>
-                <IconSymbol name="person.2.fill" color={colors.text} size={20} />
-                <Text style={styles.permissionLabel}>Manage People</Text>
-              </View>
-              <View style={[styles.permissionBadge, isAdmin() && styles.permissionBadgeActive]}>
-                <Text style={[styles.permissionBadgeText, isAdmin() && styles.permissionBadgeTextActive]}>
-                  {isAdmin() ? 'Allowed' : 'Denied'}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.permissionRow}>
-              <View style={styles.permissionInfo}>
-                <IconSymbol name="checkmark.circle" color={colors.text} size={20} />
-                <Text style={styles.permissionLabel}>Complete Chores</Text>
-              </View>
-              <View style={[styles.permissionBadge, styles.permissionBadgeActive]}>
-                <Text style={[styles.permissionBadgeText, styles.permissionBadgeTextActive]}>
-                  Allowed
-                </Text>
-              </View>
-            </View>
+            {showPasswordChange && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.passwordChangeContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder="New Password"
+                    placeholderTextColor={colors.textSecondary}
+                    secureTextEntry
+                    autoCapitalize="none"
+                  />
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="Confirm Password"
+                    placeholderTextColor={colors.textSecondary}
+                    secureTextEntry
+                    autoCapitalize="none"
+                  />
+                  <View style={styles.passwordButtonRow}>
+                    <Pressable 
+                      style={[styles.passwordButton, styles.cancelButton]}
+                      onPress={() => {
+                        setShowPasswordChange(false);
+                        setNewPassword('');
+                        setConfirmPassword('');
+                      }}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable 
+                      style={[styles.passwordButton, styles.saveButton]}
+                      onPress={handleChangePassword}
+                    >
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -361,37 +386,45 @@ export default function ProfileScreen() {
     height: 1,
     backgroundColor: colors.accent,
   },
-  permissionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  permissionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  passwordChangeContainer: {
+    paddingTop: 12,
     gap: 12,
   },
-  permissionLabel: {
+  passwordInput: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
     color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
-  permissionBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+  passwordButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  passwordButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
     backgroundColor: colors.accent,
   },
-  permissionBadgeActive: {
-    backgroundColor: colors.highlight,
+  saveButton: {
+    backgroundColor: colors.primary,
   },
-  permissionBadgeText: {
-    fontSize: 12,
+  cancelButtonText: {
+    color: colors.text,
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
   },
-  permissionBadgeTextActive: {
-    color: colors.success,
+  saveButtonText: {
+    color: colors.card,
+    fontSize: 14,
+    fontWeight: '600',
   },
   logoutButton: {
     flexDirection: 'row',

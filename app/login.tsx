@@ -74,8 +74,8 @@ export default function LoginScreen() {
       return;
     }
 
-    if (password.length < 4) {
-      Alert.alert('Error', 'Password must be at least 4 characters');
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 

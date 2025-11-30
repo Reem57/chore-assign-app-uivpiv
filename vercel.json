@@ -1,0 +1,20 @@
+{
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/manifest.json",
+      "status": 404
+    },
+    {
+      "src": "/service-worker.js",
+      "status": 404
+    }
+  ]
+}

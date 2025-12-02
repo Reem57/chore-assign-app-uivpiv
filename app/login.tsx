@@ -16,12 +16,10 @@ import { Stack, useRouter } from 'expo-router';
 import { useThemedStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
-import { useChoreData } from '@/hooks/useChoreData';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login, signup } = useAuth();
-  const { addPerson } = useChoreData();
   const { colors } = useThemedStyles();
   const styles = getStyles(colors);
   
@@ -38,12 +36,12 @@ export default function LoginScreen() {
       Animated.timing(scaleAnim, {
         toValue: 0.95,
         duration: 100,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
         duration: 100,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   };
@@ -103,8 +101,7 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (success) {
-      // Add the person to the people list
-      await addPerson(name.trim());
+      // Person doc already created inside authService.signUp; no duplicate add here
       router.replace('/(tabs)/' as any);
     } else {
       if (Platform.OS === 'web') {

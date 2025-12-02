@@ -121,30 +121,56 @@ export const authService = {
   // Sign up new user
   async signUp(username: string, password: string, name: string): Promise<User | null> {
     try {
+      // Basic validation and normalization
+      if (!username || typeof username !== 'string') {
+        console.error('Sign up error: username missing or invalid');
+        return null;
+      }
+      if (!password || typeof password !== 'string' || password.length < 4) {
+        console.error('Sign up error: password missing or too short');
+        return null;
+      }
+      const cleanUsername = username.trim().toLowerCase().replace(/\s+/g, '');
+      if (!cleanUsername) {
+        console.error('Sign up error: username empty after trimming');
+        return null;
+      }
+
       // Prevent admin username
-      if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
+      if (cleanUsername === ADMIN_USERNAME.toLowerCase()) {
         console.error('Sign up error: Admin username cannot be used');
         return null;
       }
 
-      const email = `${username.toLowerCase()}@choreapp.com`;
+      // If the provided username already looks like an email, use it directly
+      const email = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@choreapp.com`;
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
       const newUser: User = {
         id: userCredential.user.uid,
-        username,
+        username: cleanUsername.includes('@') ? cleanUsername.split('@')[0] : cleanUsername,
         password,
         personId: Date.now().toString(),
         isAdmin: false,
         createdAt: Date.now(),
       };
-      await setDoc(doc(db, 'users', userCredential.user.uid), newUser);
+      try {
+        await setDoc(doc(db, 'users', userCredential.user.uid), newUser);
+      } catch (e: any) {
+        console.error('Sign up error: failed to write users doc', e?.code, e?.message);
+        throw e; // rethrow to surface permission-denied
+      }
       // Create Person doc with provided name (fallback to username if blank)
-      await setDoc(doc(db, 'people', newUser.personId), {
-        id: newUser.personId,
-        name: name?.trim() || newUser.username,
-        createdAt: Date.now(),
-      });
+      try {
+        await setDoc(doc(db, 'people', newUser.personId), {
+          id: newUser.personId,
+          name: (typeof name === 'string' && name.trim()) ? name.trim() : newUser.username,
+          createdAt: Date.now(),
+        });
+      } catch (e: any) {
+        console.error('Sign up error: failed to write people doc', e?.code, e?.message);
+        throw e;
+      }
       return newUser;
     } catch (error: any) {
       console.error('Sign up error:', error.code, error.message);

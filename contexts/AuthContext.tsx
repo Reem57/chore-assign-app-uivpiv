@@ -60,13 +60,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const signup = async (username: string, password: string, name: string): Promise<boolean> => {
+  const signup = async (username: string, password:string, name: string): Promise<boolean> => {
+    console.log('AuthContext: Attempting signup for', { username, name });
     const user = await authService.signUp(username, password, name);
+    console.log('AuthContext: signup service returned:', user);
     if (user) {
+      console.log('AuthContext: Signup successful, setting current user.');
       setCurrentUser(user);
-      await loadUsers();
+      // No need to await loadUsers if not critical for immediate post-signup flow
+      loadUsers();
       return true;
     }
+    console.log('AuthContext: Signup failed.');
     return false;
   };
 

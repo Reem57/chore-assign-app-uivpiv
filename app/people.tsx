@@ -247,7 +247,7 @@ export default function PeopleScreen() {
                       {/* Show linked user login info for admins */}
                       {isAdmin() && (
                         (() => {
-                          const linkedUser = users.find((u) => u.personId === person.id);
+                          const linkedUser = users.find((u) => String(u.personId) === String(person.id));
                           if (!linkedUser) {
                             return <Text style={styles.usernameText}>No account</Text>;
                           }
@@ -340,7 +340,7 @@ export default function PeopleScreen() {
                   </View>
                   {/* Password change/reset for linked user */}
                   {editingId && (() => {
-                    const linkedUser = users.find((u) => u.personId === editingId);
+                    const linkedUser = users.find((u) => String(u.personId) === String(editingId));
                     if (!linkedUser) {
                       return <Text style={styles.usernameText}>No account</Text>;
                     }

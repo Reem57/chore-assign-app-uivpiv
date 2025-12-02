@@ -10,12 +10,7 @@ import {
 } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { IconSymbol } from '@/components/IconSymbol';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  interpolate,
-} from 'react-native-reanimated';
+// Removed reanimated usage after simplifying the tab bar
 import { BlurView } from 'expo-blur';
 import React from 'react';
 import { useRouter, usePathname } from 'expo-router';
@@ -66,37 +61,7 @@ export default function FloatingTabBar({
     return pathname.includes(tab.name);
   });
 
-  const translateX = useSharedValue(0);
-  const [hasInitialized, setHasInitialized] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isReady) return; // Wait for dimensions to be ready
-    
-    const tabWidth = actualWidth / tabs.length;
-    // Pure mathematical centering: position indicator center at tab center
-    const indicatorWidth = tabWidth * 0.8;
-    const tabStartPosition = activeIndex * tabWidth;
-    const tabCenter = tabStartPosition + (tabWidth / 2);
-    const indicatorStartPosition = tabCenter - (indicatorWidth / 2);
-    
-    if (!hasInitialized) {
-      // Set initial position without animation
-      translateX.value = indicatorStartPosition;
-      setHasInitialized(true);
-    } else {
-      // Animate to new position
-      translateX.value = withSpring(indicatorStartPosition, {
-        damping: 20,
-        stiffness: 90,
-      });
-    }
-  }, [activeIndex, actualWidth, tabs.length, isReady, hasInitialized]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
+  // Removed indicator animation logic for a simpler static tab bar
 
   const handleTabPress = (route: string) => {
     router.push(route as any);
@@ -116,36 +81,29 @@ export default function FloatingTabBar({
           style={[styles.blurContainer, { borderRadius }]}
         >
           <View style={[styles.tabBar, { backgroundColor: colors.card }]}>
-            <Animated.View
-              style={[
-                styles.activeIndicator,
-                {
-                  width: tabWidth * 0.8, // 80% of tab width for consistent ratio
-                  backgroundColor: colors.primary,
-                  borderRadius: borderRadius - 4,
-                },
-                animatedStyle,
-              ]}
-            />
             {tabs.map((tab, index) => {
               const isActive = index === activeIndex;
               return (
                 <TouchableOpacity
                   key={tab.name}
-                  style={[styles.tab, { width: tabWidth }]}
+                  style={[
+                    styles.tab,
+                    { width: tabWidth },
+                    isActive && styles.activeTab,
+                  ]}
                   onPress={() => handleTabPress(tab.route)}
                   activeOpacity={0.7}
                 >
                   <IconSymbol
                     name={tab.icon as any}
                     size={24}
-                    color={isActive ? colors.card : colors.text}
+                    color={isActive ? colors.primary : colors.text}
                     style={styles.icon}
                   />
                   <Text
                     style={[
                       styles.label,
-                      { color: isActive ? colors.card : colors.text },
+                      { color: isActive ? colors.primary : colors.text },
                     ]}
                   >
                     {tab.label}
@@ -186,18 +144,16 @@ const styles = StyleSheet.create({
     position: 'relative',
     opacity: 0.95,
   },
-  activeIndicator: {
-    position: 'absolute',
-    height: 48,
-    top: 8,
-    left: 0, // Remove fixed offset, let translateX handle all positioning
-  },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
     zIndex: 1,
+    borderRadius: 16,
+  },
+  activeTab: {
+    backgroundColor: 'rgba(0,0,0,0.04)',
   },
   icon: {
     marginBottom: 2,

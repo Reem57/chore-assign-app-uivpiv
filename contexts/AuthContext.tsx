@@ -55,6 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const user = await authService.signIn(username, password);
     if (user) {
       setCurrentUser(user);
+      // Load all users if admin
+      if (user.isAdmin) {
+        await loadUsers();
+      }
       return true;
     }
     return false;

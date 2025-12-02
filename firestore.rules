@@ -1,0 +1,81 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Helper function to check if user is accessing their own data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read their own user document
+      allow read: if isOwner(userId);
+      // Admins can read all users
+      allow read: if isAdmin();
+      // Allow creation during signup (auth.uid must match the document ID)
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Users can update their own document, admins can update any
+      allow update: if isOwner(userId) || isAdmin();
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
+    
+    // People collection
+    match /people/{personId} {
+      // All authenticated users can read people
+      allow read: if isAuthenticated();
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // Chores collection
+    match /chores/{choreId} {
+      // All authenticated users can read chores
+      allow read: if isAuthenticated();
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // Assignments collection
+    match /assignments/{assignmentId} {
+      // All authenticated users can read assignments
+      allow read: if isAuthenticated();
+      // Admins can write any assignment
+      allow write: if isAdmin();
+      // Users can update their own assignments (e.g., marking as complete)
+      allow update: if isAuthenticated() && 
+                       get(/databases/$(database)/documents/assignments/$(assignmentId)).data.personId == 
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.personId;
+    }
+    
+    // Points collection
+    match /points/{pointId} {
+      // All authenticated users can read points
+      allow read: if isAuthenticated();
+      // Only admins and the system can write
+      allow write: if isAdmin();
+    }
+    
+    // Groceries collection
+    match /groceries/{groceryId} {
+      // All authenticated users can read groceries
+      allow read: if isAuthenticated();
+      // All authenticated users can create/update groceries
+      allow write: if isAuthenticated();
+    }
+  }
+}

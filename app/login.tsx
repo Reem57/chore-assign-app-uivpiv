@@ -50,7 +50,11 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter username and password');
+      if (Platform.OS === 'web') {
+        window.alert('Please enter username and password');
+      } else {
+        Alert.alert('Error', 'Please enter username and password');
+      }
       return;
     }
 
@@ -64,18 +68,30 @@ export default function LoginScreen() {
     if (success) {
       router.replace('/(tabs)/' as any);
     } else {
-      Alert.alert('Error', 'Invalid username or password');
+      if (Platform.OS === 'web') {
+        window.alert('Invalid username or password');
+      } else {
+        Alert.alert('Error', 'Invalid username or password');
+      }
     }
   };
 
   const handleSignup = async () => {
     if (!username.trim() || !password.trim() || !name.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      if (Platform.OS === 'web') {
+        window.alert('Please fill in all fields');
+      } else {
+        Alert.alert('Error', 'Please fill in all fields');
+      }
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      if (Platform.OS === 'web') {
+        window.alert('Password must be at least 6 characters');
+      } else {
+        Alert.alert('Error', 'Password must be at least 6 characters');
+      }
       return;
     }
 
@@ -91,7 +107,11 @@ export default function LoginScreen() {
       await addPerson(name.trim());
       router.replace('/(tabs)/' as any);
     } else {
-      Alert.alert('Error', 'Sign up failed. Username may already exist or contain invalid characters.');
+      if (Platform.OS === 'web') {
+        window.alert('Sign up failed. Username may already exist or contain invalid characters.');
+      } else {
+        Alert.alert('Error', 'Sign up failed. Username may already exist or contain invalid characters.');
+      }
     }
   };
 

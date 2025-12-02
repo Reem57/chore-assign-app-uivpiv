@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (username: string, password: string): Promise<boolean> => {
+    console.log('AuthContext login called with:', { username, password: '***', usernameType: typeof username, passwordType: typeof password });
     const user = await authService.signIn(username, password);
     if (user) {
       setCurrentUser(user);

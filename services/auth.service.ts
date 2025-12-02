@@ -17,33 +17,74 @@ export const authService = {
   // Sign in user
   async signIn(username: string, password: string): Promise<User | null> {
     try {
+      console.log('signIn called with:', { username, usernameType: typeof username, passwordType: typeof password });
+      
+      // Validate inputs
+      if (!username || typeof username !== 'string' || !password || typeof password !== 'string') {
+        console.error('Invalid username or password type');
+        return null;
+      }
+      
       // Use email as-is if it contains @, otherwise convert username to email format
       const email = username.includes('@') ? username : `${username.toLowerCase()}@choreapp.com`;
+      console.log('Attempting sign in with email:', email);
       
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Sign in successful, fetching user doc');
       
       // Try to get user document from Firestore
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      console.log('User doc exists:', userDoc.exists());
       
       if (userDoc.exists()) {
-        const existingUser = { id: userDoc.id, ...userDoc.data() } as User;
+        const userData = userDoc.data();
+        console.log('User data retrieved:', { id: userDoc.id, username: userData?.username, personId: userData?.personId });
+        
+        const existingUser = { id: userDoc.id, ...userData } as User;
+        
+        // Validate user data
+        if (!existingUser.username || typeof existingUser.username !== 'string') {
+          console.error('Invalid user data: missing or invalid username');
+          return null;
+        }
+        
         // Ensure a Person document exists matching existingUser.personId; if not, try to attach or create
-        const personRef = doc(db, 'people', existingUser.personId);
+        // Firestore doc IDs must be strings; coerce if stored as number
+        const personId = String((existingUser as any).personId);
+        // If the saved user doc has a numeric personId, normalize it to string
+        if ((existingUser as any).personId !== personId) {
+          try {
+            await updateDoc(doc(db, 'users', existingUser.id), { personId });
+          } catch (e) {
+            console.warn('Unable to normalize personId to string:', e);
+          }
+          (existingUser as any).personId = personId;
+        }
+        const personRef = doc(db, 'people', personId);
         const personSnap = await getDoc(personRef);
+        console.log('Person doc exists:', personSnap.exists());
+        
         if (!personSnap.exists()) {
           // Try to find a person by name first
           const peopleSnap = await getDocs(collection(db, 'people'));
           const match = peopleSnap.docs.find(d => {
             const data = d.data() as any;
-            return typeof data.name === 'string' && data.name.trim().toLowerCase() === existingUser.username.trim().toLowerCase();
+            const dataName = data?.name;
+            const userName = existingUser?.username;
+            
+            // Safe string comparison
+            if (typeof dataName === 'string' && typeof userName === 'string') {
+              return dataName.trim().toLowerCase() === userName.trim().toLowerCase();
+            }
+            return false;
           });
           if (match) {
             // Update user.personId to match found person
             await updateDoc(doc(db, 'users', existingUser.id), { personId: match.id });
             existingUser.personId = match.id;
           } else {
-            // Create new Person doc
-            const newPersonId = existingUser.personId; // keep existing id
+            // Create new Person doc (use normalized string ID)
+            const newPersonId = personId;
             await setDoc(doc(db, 'people', newPersonId), {
               id: newPersonId,
               name: existingUser.username,
@@ -72,7 +113,7 @@ export const authService = {
       });
       return newUser;
     } catch (error: any) {
-      console.error('Sign in error:', error.code, error.message);
+      console.error('Sign in error:', error?.code || 'unknown', error?.message || String(error));
       return null;
     }
   },

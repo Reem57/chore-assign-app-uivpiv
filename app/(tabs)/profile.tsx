@@ -33,21 +33,46 @@ export default function ProfileScreen() {
   const { weeklyPoints, yearlyPoints } = userPerson ? getPersonPoints(userPerson.id) : { weeklyPoints: 0, yearlyPoints: 0 };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/login');
+    console.log('Logout button pressed');
+    
+    // Use confirm for web compatibility
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      if (confirmed) {
+        try {
+          console.log('User confirmed logout');
+          await logout();
+          console.log('Logout successful, navigating to login');
+          router.replace('/login');
+        } catch (error) {
+          console.error('Logout failed:', error);
+          window.alert('Failed to logout. Please try again.');
+        }
+      }
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                console.log('User confirmed logout');
+                await logout();
+                console.log('Logout successful, navigating to login');
+                router.replace('/login');
+              } catch (error) {
+                console.error('Logout failed:', error);
+                Alert.alert('Error', 'Failed to logout. Please try again.');
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleChangePassword = async () => {

@@ -202,7 +202,12 @@ export function useChoreData() {
   };
 
   const deleteChore = async (id: string) => {
-    await choresService.deleteChore(id);
+    try {
+      await choresService.deleteChore(id);
+    } catch (error) {
+      console.error('Error deleting chore:', error);
+      throw error;
+    }
   };
 
   const addPerson = async (name: string, floor?: string) => {

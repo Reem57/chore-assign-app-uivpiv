@@ -94,17 +94,29 @@ export const choresService = {
 
   // Delete chore
   async deleteChore(id: string): Promise<void> {
-    await deleteDoc(doc(db, 'chores', id));
-    // Delete associated assignments
-    const assignmentsSnapshot = await getDocs(collection(db, 'assignments'));
-    const batch = writeBatch(db);
-    assignmentsSnapshot.docs.forEach((assignmentDoc) => {
-      const assignment = assignmentDoc.data() as Assignment;
-      if (assignment.choreId === id) {
-        batch.delete(doc(db, 'assignments', assignmentDoc.id));
-      }
-    });
-    await batch.commit();
+    console.log('deleteChore: Deleting chore:', id);
+    try {
+      await deleteDoc(doc(db, 'chores', id));
+      console.log('deleteChore: Chore deleted, now deleting assignments');
+      // Delete associated assignments
+      const assignmentsSnapshot = await getDocs(collection(db, 'assignments'));
+      console.log('deleteChore: Found', assignmentsSnapshot.docs.length, 'total assignments');
+      const batch = writeBatch(db);
+      let deleteCount = 0;
+      assignmentsSnapshot.docs.forEach((assignmentDoc) => {
+        const assignment = assignmentDoc.data() as Assignment;
+        if (assignment.choreId === id) {
+          batch.delete(doc(db, 'assignments', assignmentDoc.id));
+          deleteCount++;
+        }
+      });
+      console.log('deleteChore: Deleting', deleteCount, 'assignments for this chore');
+      await batch.commit();
+      console.log('deleteChore: Successfully deleted chore and assignments');
+    } catch (error) {
+      console.error('deleteChore: Error deleting chore:', error);
+      throw error;
+    }
   },
 
   // Add person

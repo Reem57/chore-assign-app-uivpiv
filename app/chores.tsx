@@ -106,18 +106,42 @@ export default function ChoresScreen() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    Alert.alert(
-      'Delete Chore',
-      `Are you sure you want to delete "${name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteChore(id),
-        },
-      ]
-    );
+    const confirmDelete = async () => {
+      try {
+        await deleteChore(id);
+        if (Platform.OS === 'web') {
+          window.alert('Chore deleted successfully');
+        } else {
+          Alert.alert('Success', 'Chore deleted successfully');
+        }
+      } catch (error) {
+        console.error('Delete chore error:', error);
+        if (Platform.OS === 'web') {
+          window.alert('Failed to delete chore. Check console for details.');
+        } else {
+          Alert.alert('Error', 'Failed to delete chore. Check console for details.');
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete Chore',
+        `Are you sure you want to delete "${name}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: confirmDelete,
+          },
+        ]
+      );
+    }
   };
 
   const handleCancel = () => {
@@ -131,28 +155,44 @@ export default function ChoresScreen() {
   };
 
   const handleReassign = () => {
-    Alert.alert(
-      'Reassign Chores',
-      'This will create new assignments for this week. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reassign',
-          onPress: async () => {
-            try {
-              console.log('Before reassign - People:', people.length, 'Chores:', chores.length);
-              console.log('Chores details:', chores.map(c => ({ name: c.name, timesPerWeek: c.timesPerWeek })));
-              const count = await reassignChores();
-              console.log('After reassign - new assignments for current week:', count);
-              Alert.alert('Success', `Chores have been reassigned (${count} assignments created)`);
-            } catch (err) {
-              console.error('Reassign failed', err);
-              Alert.alert('Error', 'Failed to reassign chores. Check logs for details.');
-            }
+    const reassign = async () => {
+      try {
+        console.log('Before reassign - People:', people.length, 'Chores:', chores.length);
+        console.log('Chores details:', chores.map(c => ({ name: c.name, timesPerWeek: c.timesPerWeek })));
+        const count = await reassignChores();
+        console.log('After reassign - new assignments for current week:', count);
+        if (Platform.OS === 'web') {
+          window.alert(`Chores have been reassigned (${count} assignments created)`);
+        } else {
+          Alert.alert('Success', `Chores have been reassigned (${count} assignments created)`);
+        }
+      } catch (err) {
+        console.error('Reassign failed', err);
+        if (Platform.OS === 'web') {
+          window.alert('Failed to reassign chores. Check logs for details.');
+        } else {
+          Alert.alert('Error', 'Failed to reassign chores. Check logs for details.');
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('This will create new assignments for this week. Continue?')) {
+        reassign();
+      }
+    } else {
+      Alert.alert(
+        'Reassign Chores',
+        'This will create new assignments for this week. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reassign',
+            onPress: reassign,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   if (!isAdmin()) {
@@ -319,7 +359,7 @@ export default function ChoresScreen() {
             <View style={styles.choresList}>
               {chores.map((chore) => (
                 <View key={chore.id} style={styles.choreCard}>
-                  <View style={styles.choreInfo}>
+                  <View style={styles.choreInfo} pointerEvents="box-none">
                     <Text style={styles.choreName}>{chore.name}</Text>
                     {chore.floor && (
                       <Text style={styles.choreFloor}>{chore.floor}</Text>
@@ -339,16 +379,24 @@ export default function ChoresScreen() {
                       </View>
                     </View>
                   </View>
-                  <View style={styles.choreActions}>
+                  <View style={styles.choreActions} pointerEvents="box-none">
                     <Pressable
                       style={styles.editButton}
-                      onPress={() => handleEdit(chore.id, chore.name, chore.timesPerWeek, chore.points || 10, chore.description || '', chore.floor || '')}
+                      onPress={() => {
+                        console.log('Edit pressed for:', chore.id);
+                        handleEdit(chore.id, chore.name, chore.timesPerWeek, chore.points || 10, chore.description || '', chore.floor || '');
+                      }}
+                      hitSlop={8}
                     >
                       <IconSymbol name="pencil" color={colors.primary} size={20} />
                     </Pressable>
                     <Pressable
                       style={styles.deleteButton}
-                      onPress={() => handleDelete(chore.id, chore.name)}
+                      onPress={() => {
+                        console.log('Delete pressed for:', chore.id, chore.name);
+                        handleDelete(chore.id, chore.name);
+                      }}
+                      hitSlop={8}
                     >
                       <IconSymbol name="trash" color={colors.danger} size={20} />
                     </Pressable>
@@ -547,9 +595,11 @@ export default function ChoresScreen() {
     justifyContent: 'space-between',
     boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.08)',
     elevation: 2,
+    position: 'relative',
   },
   choreInfo: {
     flex: 1,
+    marginRight: 16,
   },
   choreName: {
     fontSize: 18,
@@ -583,12 +633,15 @@ export default function ChoresScreen() {
   choreActions: {
     flexDirection: 'row',
     gap: 12,
+    zIndex: 10,
   },
   editButton: {
     padding: 8,
+    cursor: Platform.OS === 'web' ? 'pointer' : undefined,
   },
   deleteButton: {
     padding: 8,
+    cursor: Platform.OS === 'web' ? 'pointer' : undefined,
   },
 });
   }

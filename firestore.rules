@@ -54,12 +54,13 @@ service cloud.firestore {
     match /assignments/{assignmentId} {
       // All authenticated users can read assignments
       allow read: if isAuthenticated();
-      // Admins can write any assignment
-      allow write: if isAdmin();
-      // Users can update their own assignments (e.g., marking as complete)
-      allow update: if isAuthenticated() && 
+      // Admins can create, update, and delete any assignment
+      allow create, delete: if isAdmin();
+      // Admins and users can update their own assignments
+      allow update: if isAdmin() || 
+                      (isAuthenticated() && 
                        get(/databases/$(database)/documents/assignments/$(assignmentId)).data.personId == 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.personId;
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.personId);
     }
     
     // Points collection

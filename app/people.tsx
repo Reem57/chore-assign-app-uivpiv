@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Modal,
+  Platform,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -84,6 +85,16 @@ export default function PeopleScreen() {
   };
 
   const handleDelete = (id: string, name: string) => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        `Remove ${name}? This will delete their assignments.`
+      );
+      if (confirmed) {
+        deletePerson(id);
+      }
+      return;
+    }
+
     Alert.alert(
       'Remove Person',
       `Are you sure you want to remove ${name}? Their assignments will be deleted.`,

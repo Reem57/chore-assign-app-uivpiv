@@ -222,7 +222,7 @@ export default function GroceriesScreen() {
   scrollContent: {
     paddingHorizontal: 16,
     // Push content slightly lower so headers sit a bit further down
-    paddingTop: 35,
+    paddingTop: 5,
     paddingBottom: 16,
   },
   scrollContentWithTabBar: {

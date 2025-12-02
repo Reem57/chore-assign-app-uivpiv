@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Stack } from 'expo-router';
 import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl } from 'react-native';
@@ -114,7 +113,7 @@ export default function HomeScreen() {
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     centerContent: { justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { paddingHorizontal: 16, paddingTop: 5, paddingBottom: 16 },
+    scrollContent: { paddingHorizontal: 16, paddingTop: 25, paddingBottom: 16 },
     scrollContentWithTabBar: { paddingBottom: 100 },
     loadingText: { fontSize: 18, color: colors.text, fontWeight: '600' },
     header: { marginTop: 12, marginBottom: 24 },

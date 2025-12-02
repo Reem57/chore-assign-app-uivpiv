@@ -34,7 +34,7 @@ function RootLayoutNav() {
         router.replace('/login');
       } else if (currentUser && inAuthGroup) {
         // Redirect to home if authenticated
-        router.replace('/(tabs)/(home)/');
+        router.replace('/(tabs)/(home)');
       }
     }
   }, [currentUser, loading, segments]);

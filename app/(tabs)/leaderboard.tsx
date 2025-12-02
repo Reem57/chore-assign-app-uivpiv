@@ -238,7 +238,7 @@ export default function LeaderboardScreen() {
   loading: { color: colors.text, fontSize: 16 },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 50,
+    paddingTop: 20,
     paddingHorizontal: 16,
     paddingBottom: 20,
     borderBottomLeftRadius: 24,

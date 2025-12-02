@@ -42,7 +42,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {
+        "origin": false,
+        "root": "app"
+      }
     }
   }
 }

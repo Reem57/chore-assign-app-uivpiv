@@ -26,20 +26,50 @@ export const authService = {
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       
       if (userDoc.exists()) {
-        return { id: userDoc.id, ...userDoc.data() } as User;
+        const existingUser = { id: userDoc.id, ...userDoc.data() } as User;
+        // Ensure a Person document exists matching existingUser.personId; if not, try to attach or create
+        const personRef = doc(db, 'people', existingUser.personId);
+        const personSnap = await getDoc(personRef);
+        if (!personSnap.exists()) {
+          // Try to find a person by name first
+          const peopleSnap = await getDocs(collection(db, 'people'));
+          const match = peopleSnap.docs.find(d => {
+            const data = d.data() as any;
+            return typeof data.name === 'string' && data.name.trim().toLowerCase() === existingUser.username.trim().toLowerCase();
+          });
+          if (match) {
+            // Update user.personId to match found person
+            await updateDoc(doc(db, 'users', existingUser.id), { personId: match.id });
+            existingUser.personId = match.id;
+          } else {
+            // Create new Person doc
+            const newPersonId = existingUser.personId; // keep existing id
+            await setDoc(doc(db, 'people', newPersonId), {
+              id: newPersonId,
+              name: existingUser.username,
+              createdAt: Date.now(),
+            });
+          }
+        }
+        return existingUser;
       }
       
       // If no Firestore document exists (manually created in Firebase Console), create one
       const newUser: User = {
         id: userCredential.user.uid,
         username: username.includes('@') ? username.split('@')[0] : username,
-        password, // Store password for display
+        password,
         personId: Date.now().toString(),
         isAdmin: username.toLowerCase() === ADMIN_USERNAME.toLowerCase() || email === ADMIN_EMAIL,
         createdAt: Date.now(),
       };
-      
       await setDoc(doc(db, 'users', userCredential.user.uid), newUser);
+      // Create corresponding Person doc
+      await setDoc(doc(db, 'people', newUser.personId), {
+        id: newUser.personId,
+        name: newUser.username,
+        createdAt: Date.now(),
+      });
       return newUser;
     } catch (error: any) {
       console.error('Sign in error:', error.code, error.message);
@@ -62,13 +92,18 @@ export const authService = {
       const newUser: User = {
         id: userCredential.user.uid,
         username,
-        password, // Store for display purposes (not best practice but matching your requirements)
+        password,
         personId: Date.now().toString(),
         isAdmin: false,
         createdAt: Date.now(),
       };
-
       await setDoc(doc(db, 'users', userCredential.user.uid), newUser);
+      // Create Person doc with provided name (fallback to username if blank)
+      await setDoc(doc(db, 'people', newUser.personId), {
+        id: newUser.personId,
+        name: name?.trim() || newUser.username,
+        createdAt: Date.now(),
+      });
       return newUser;
     } catch (error: any) {
       console.error('Sign up error:', error.code, error.message);

@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function ProfileScreen() {
-  const { chores, people, assignments, getPersonPoints, getPersonForUsername } = useChoreData();
+  const { chores, people, assignments, getPersonPoints, getPersonForUser } = useChoreData();
   const { currentUser, isAdmin, logout, setUserPassword } = useAuth();
   const router = useRouter();
   const { colors } = useThemedStyles();
@@ -28,8 +28,8 @@ export default function ProfileScreen() {
   const completedCount = currentAssignments.filter((a) => a.completed).length;
   const totalCount = currentAssignments.length;
 
-  // Get current user's person data (tolerant match)
-  const userPerson = getPersonForUsername(currentUser?.username || undefined) || null;
+  // Get current user's person data directly via personId
+  const userPerson = getPersonForUser() || null;
   const { weeklyPoints, yearlyPoints } = userPerson ? getPersonPoints(userPerson.id) : { weeklyPoints: 0, yearlyPoints: 0 };
 
   const handleLogout = async () => {

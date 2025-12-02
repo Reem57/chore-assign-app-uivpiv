@@ -15,7 +15,6 @@ export function useChoreData() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [pointsData, setPointsData] = useState<PointsData[]>([]);
   const [localRatedAssignments, setLocalRatedAssignments] = useState<string[]>([]);
-  const [userPersonMap, setUserPersonMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Track Firebase auth state (distinct from local admin mode)
@@ -174,28 +173,9 @@ export function useChoreData() {
     };
   };
 
-  const linkUserToPerson = async (username: string, personId: string) => {
-    const key = username.trim().toLowerCase();
-    const updated = { ...userPersonMap, [key]: personId };
-    setUserPersonMap(updated);
-  };
-
-  const getPersonForUsername = (username?: string): Person | undefined => {
-    if (!username) return undefined;
-    const key = username.trim().toLowerCase();
-    const mappedId = userPersonMap[key];
-    if (mappedId) {
-      const byId = people.find((p) => p.id === mappedId);
-      if (byId) return byId;
-    }
-    const uname = key;
-    const exact = people.find((p) => p.name && p.name.trim().toLowerCase() === uname);
-    if (exact) return exact;
-    const contains = people.find((p) => p.name && p.name.trim().toLowerCase().includes(uname));
-    if (contains) return contains;
-    const reverseContains = people.find((p) => p.name && uname.includes(p.name.trim().toLowerCase()));
-    if (reverseContains) return reverseContains;
-    return undefined;
+  const getPersonForUser = (): Person | undefined => {
+    if (!currentUser) return undefined;
+    return people.find(p => p.id === currentUser.personId);
   };
 
   const addChore = async (name: string, timesPerWeek: number, points: number = 10, description: string = '', floor: string = '') => {
@@ -319,7 +299,7 @@ export function useChoreData() {
     assignments,
     pointsData,
     loading,
-    userPersonMap,
+    // linking removed: rely on currentUser.personId
     addChore,
     updateChore,
     deleteChore,
@@ -333,7 +313,6 @@ export function useChoreData() {
     hasLocallyRated,
     refreshData,
     getPersonPoints,
-    getPersonForUsername,
-    linkUserToPerson,
+    getPersonForUser,
   };
 }

@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Stack } from 'expo-router';
-import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl, ActionSheetIOS } from 'react-native';
+import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useThemedStyles } from '@/styles/commonStyles';
@@ -11,7 +11,7 @@ import { getWeekNumber } from '@/utils/choreAssignment';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { chores, people, assignments, loading, toggleChoreCompletion, canCompleteTask, getPersonPoints, addRating, hasLocallyRated, refreshData, getPersonForUsername, linkUserToPerson, addPerson } = useChoreData();
+  const { chores, people, assignments, loading, toggleChoreCompletion, canCompleteTask, getPersonPoints, addRating, hasLocallyRated, refreshData, getPersonForUser } = useChoreData();
   const [refreshing, setRefreshing] = useState(false);
   const { colors } = useThemedStyles();
 
@@ -39,35 +39,25 @@ export default function HomeScreen() {
 
   // Filter assignments for current user if not admin
   const userAssignments = useMemo(() => {
-    if (isAdmin()) {
-      return currentAssignments;
-    }
-    // Find the person associated with current user (tolerant match)
-    const userPerson = getPersonForUsername(currentUser?.username || undefined);
-    if (!userPerson) return [];
-    return currentAssignments.filter((a) => a.personId === userPerson.id);
-  }, [currentAssignments, currentUser, people, isAdmin]);
+    if (isAdmin()) return currentAssignments;
+    const person = getPersonForUser();
+    if (!person) return [];
+    return currentAssignments.filter(a => a.personId === person.id);
+  }, [currentAssignments, currentUser, people, isAdmin, getPersonForUser]);
 
   // Group assignments by person
   const assignmentsByPerson = useMemo(() => {
     const grouped: { [key: string]: typeof currentAssignments } = {};
-    
     if (isAdmin()) {
-      people.forEach((person) => {
-        grouped[person.id] = currentAssignments.filter(
-          (a) => a.personId === person.id
-        );
+      people.forEach(p => {
+        grouped[p.id] = currentAssignments.filter(a => a.personId === p.id);
       });
     } else {
-      // For regular users, only show their own assignments
-      const userPerson = getPersonForUsername(currentUser?.username || undefined);
-      if (userPerson) {
-        grouped[userPerson.id] = userAssignments;
-      }
+      const person = getPersonForUser();
+      if (person) grouped[person.id] = userAssignments;
     }
-
     return grouped;
-  }, [currentAssignments, people, isAdmin, currentUser, userAssignments, getPersonForUsername]);
+  }, [currentAssignments, people, isAdmin, userAssignments, getPersonForUser]);
 
   const getChoreById = (choreId: string) => {
     return chores.find((c) => c.id === choreId);
@@ -82,68 +72,9 @@ export default function HomeScreen() {
   const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   // Non-admin user stats
-  const userPerson = getPersonForUsername(currentUser?.username || undefined);
+  const userPerson = getPersonForUser();
 
-  const showLinkPicker = () => {
-    if (!currentUser) return;
-    const username = currentUser.username;
-    const names = people.map((p) => p.name || 'Unknown');
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: 'Link to which person?',
-          options: [...names, 'Cancel'],
-          cancelButtonIndex: names.length,
-          userInterfaceStyle: 'light',
-        },
-        async (buttonIndex) => {
-          if (buttonIndex === names.length) return;
-          const person = people[buttonIndex];
-          if (person) {
-            await linkUserToPerson(username, person.id);
-            Alert.alert('Linked', `You are now linked to ${person.name}`);
-            onRefresh();
-          }
-        }
-      );
-    } else {
-      // Fallback simple list via Alert for Android/Web (limited buttons)
-      Alert.alert(
-        'Link to person',
-        'Please select your profile from People',
-        [
-          { text: 'Open People', onPress: () => { /* route to people for manual linking */ router.push('/people'); } },
-          { text: 'Cancel', style: 'cancel' },
-        ],
-        { cancelable: true }
-      );
-    }
-  };
-
-  const autoLink = async () => {
-    if (!currentUser) return;
-    const candidate = getPersonForUsername(currentUser.username);
-    if (candidate) {
-      await linkUserToPerson(currentUser.username, candidate.id);
-      Alert.alert('Linked', `You are now linked to ${candidate.name}`);
-      onRefresh();
-      return;
-    }
-    // If no candidate, optionally create a new person with username
-    const name = currentUser.username;
-    addPerson(name);
-    // wait a tick for state to update
-    setTimeout(async () => {
-      const created = people.find((p) => (p.name || '').toLowerCase() === name.toLowerCase());
-      if (created) {
-        await linkUserToPerson(name, created.id);
-        Alert.alert('Created', `Created and linked to ${created.name}`);
-        onRefresh();
-      } else {
-        Alert.alert('Failed', 'Could not create/link person automatically. Please pick manually.');
-      }
-    }, 100);
-  };
+  // Linking removed.
   const remainingTasks = userAssignments.filter((a) => !a.completed).length;
   const DEFAULT_MINUTES_PER_TASK = 15; // assumption: average task takes 15 minutes
   const estimatedMinutesRemaining = remainingTasks * DEFAULT_MINUTES_PER_TASK;
@@ -169,10 +100,7 @@ export default function HomeScreen() {
   };
 
   const renderHeaderRight = () => (
-    <Pressable
-      onPress={handleLogout}
-      style={styles.headerButtonContainer}
-    >
+    <Pressable onPress={handleLogout} style={styles.headerButtonContainer}>
       <IconSymbol name="rectangle.portrait.and.arrow.right" color={colors.primary} size={24} />
     </Pressable>
   );
@@ -183,44 +111,15 @@ export default function HomeScreen() {
     </View>
   );
 
-  // Dynamic styles based on theme
   const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    centerContent: {
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    scrollContent: {
-      paddingHorizontal: 16,
-      paddingTop: 5,
-      paddingBottom: 16,
-    },
-    scrollContentWithTabBar: {
-      paddingBottom: 100,
-    },
-    loadingText: {
-      fontSize: 18,
-      color: colors.text,
-      fontWeight: '600',
-    },
-    header: {
-      marginTop: 12,
-      marginBottom: 24,
-    },
-    welcomeContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: '800',
-      color: colors.text,
-      marginRight: 8,
-    },
+    container: { flex: 1, backgroundColor: colors.background },
+    centerContent: { justifyContent: 'center', alignItems: 'center' },
+    scrollContent: { paddingHorizontal: 16, paddingTop: 5, paddingBottom: 16 },
+    scrollContentWithTabBar: { paddingBottom: 100 },
+    loadingText: { fontSize: 18, color: colors.text, fontWeight: '600' },
+    header: { marginTop: 12, marginBottom: 24 },
+    welcomeContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    headerTitle: { fontSize: 28, fontWeight: '800', color: colors.text, marginRight: 8 },
     adminBadge: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -578,19 +477,7 @@ export default function HomeScreen() {
           )}
 
           {/* Non-admin summary: points and remaining time */}
-          {!isAdmin() && !userPerson && (
-            <View style={[styles.userSummaryCard, { borderWidth: 2, borderColor: colors.warning }]}>
-              <Text style={[styles.userSummaryLabel, { marginBottom: 8 }]}>We couldn't find your profile in People.</Text>
-              <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-start' }}>
-                <Pressable style={[styles.actionButton, { paddingVertical: 10, flex: 0 }]} onPress={autoLink}>
-                  <Text style={styles.actionButtonText}>Link Automatically</Text>
-                </Pressable>
-                <Pressable style={[styles.actionButton, { paddingVertical: 10, flex: 0 }]} onPress={showLinkPicker}>
-                  <Text style={styles.actionButtonText}>Pick Person</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
+          {/* Linking UI removed; userPerson should always exist once signed up. */}
 
           {!isAdmin() && userPerson && (
             <View style={styles.userSummaryCard}>

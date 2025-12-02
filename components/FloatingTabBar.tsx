@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -37,13 +37,27 @@ interface FloatingTabBarProps {
 
 export default function FloatingTabBar({
   tabs,
-  containerWidth = Dimensions.get('window').width - 32,
+  containerWidth,
   borderRadius = 24,
   bottomMargin = 16,
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const [screenWidth, setScreenWidth] = React.useState(windowWidth || 375);
+  const [isReady, setIsReady] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (windowWidth > 0) {
+      setScreenWidth(windowWidth);
+      // Small delay to ensure dimensions are stable
+      setTimeout(() => setIsReady(true), 100);
+    }
+  }, [windowWidth]);
+  
+  // Calculate 85% of screen width if not provided
+  const actualWidth = containerWidth ?? screenWidth * 0.85;
 
   const activeIndex = tabs.findIndex((tab) => {
     if (tab.route === '/(tabs)/(home)/') {
@@ -53,14 +67,30 @@ export default function FloatingTabBar({
   });
 
   const translateX = useSharedValue(0);
+  const [hasInitialized, setHasInitialized] = React.useState(false);
 
   React.useEffect(() => {
-    const tabWidth = containerWidth / tabs.length;
-    translateX.value = withSpring(activeIndex * tabWidth, {
-      damping: 20,
-      stiffness: 90,
-    });
-  }, [activeIndex, containerWidth, tabs.length]);
+    if (!isReady) return; // Wait for dimensions to be ready
+    
+    const tabWidth = actualWidth / tabs.length;
+    // Pure mathematical centering: position indicator center at tab center
+    const indicatorWidth = tabWidth * 0.8;
+    const tabStartPosition = activeIndex * tabWidth;
+    const tabCenter = tabStartPosition + (tabWidth / 2);
+    const indicatorStartPosition = tabCenter - (indicatorWidth / 2);
+    
+    if (!hasInitialized) {
+      // Set initial position without animation
+      translateX.value = indicatorStartPosition;
+      setHasInitialized(true);
+    } else {
+      // Animate to new position
+      translateX.value = withSpring(indicatorStartPosition, {
+        damping: 20,
+        stiffness: 90,
+      });
+    }
+  }, [activeIndex, actualWidth, tabs.length, isReady, hasInitialized]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -72,14 +102,14 @@ export default function FloatingTabBar({
     router.push(route as any);
   };
 
-  const tabWidth = containerWidth / tabs.length;
+  const tabWidth = actualWidth / tabs.length;
 
   return (
     <SafeAreaView
       edges={['bottom']}
       style={[styles.safeArea, { marginBottom: bottomMargin }]}
     >
-      <View style={[styles.container, { width: containerWidth }]}>
+      <View style={[styles.container, { width: actualWidth }]}>
         <BlurView
           intensity={80}
           tint={theme.dark ? 'dark' : 'light'}
@@ -90,7 +120,7 @@ export default function FloatingTabBar({
               style={[
                 styles.activeIndicator,
                 {
-                  width: tabWidth,
+                  width: tabWidth * 0.8, // 80% of tab width for consistent ratio
                   backgroundColor: colors.primary,
                   borderRadius: borderRadius - 4,
                 },
@@ -160,7 +190,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     height: 48,
     top: 8,
-    left: 8,
+    left: 0, // Remove fixed offset, let translateX handle all positioning
   },
   tab: {
     flex: 1,

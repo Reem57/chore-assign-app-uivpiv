@@ -67,8 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       console.log('AuthContext: Signup successful, setting current user.');
       setCurrentUser(user);
-      // No need to await loadUsers if not critical for immediate post-signup flow
-      loadUsers();
+      // loadUsers() removed. A new user is not an admin and cannot fetch all users.
       return true;
     }
     console.log('AuthContext: Signup failed.');

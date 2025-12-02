@@ -164,6 +164,7 @@ const MAPPING: Record<string, React.ComponentProps<typeof MaterialIcons>["name"]
 
   // Lists & Leaderboard
   "list.number": "format-list-numbered",
+  "list.bullet": "format-list-bulleted",
 };
 
 export type IconSymbolName = keyof typeof MAPPING;

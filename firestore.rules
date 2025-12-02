@@ -38,8 +38,11 @@ service cloud.firestore {
     match /people/{personId} {
       // All authenticated users can read people
       allow read: if isAuthenticated();
-      // Only admins can write
+      // Admins can write any person document
       allow write: if isAdmin();
+      // Allow creating person document during signup (when user creates their account)
+      // This is needed because the user document and person document are created together
+      allow create: if isAuthenticated();
     }
     
     // Chores collection

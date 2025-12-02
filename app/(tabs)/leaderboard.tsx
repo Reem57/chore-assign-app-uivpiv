@@ -20,25 +20,6 @@ export default function LeaderboardScreen() {
   const currentYear = now.getFullYear();
 
   const handleSortChange = (newSort: 'weekly' | 'yearly') => {
-    Animated.parallel([
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.6,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(slideAnim, {
-        toValue: newSort === 'yearly' ? 1 : 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
     setSortBy(newSort);
   };
 
@@ -134,39 +115,21 @@ export default function LeaderboardScreen() {
             </View>
           </View>
           <View style={styles.toggleRow}>
-            <View style={styles.toggleButtonWrapper}>
-              <Animated.View
-                style={[
-                  styles.toggleButtonBackground,
-                  {
-                    transform: [
-                      {
-                        translateX: slideAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, 172],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-              <Pressable
-                style={styles.toggleButton}
-                onPress={() => handleSortChange('weekly')}
-              >
-                <Text style={[styles.toggleText, sortBy === 'weekly' && styles.toggleTextActive]}>This Week</Text>
-              </Pressable>
-              <Pressable
-                style={styles.toggleButton}
-                onPress={() => handleSortChange('yearly')}
-              >
-                <Text style={[styles.toggleText, sortBy === 'yearly' && styles.toggleTextActive]}>This Year</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={[styles.toggleButton, sortBy === 'weekly' && styles.toggleButtonActive]}
+              onPress={() => handleSortChange('weekly')}
+            >
+              <Text style={[styles.toggleText, sortBy === 'weekly' && styles.toggleTextActive]}>This Week</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.toggleButton, sortBy === 'yearly' && styles.toggleButtonActive]}
+              onPress={() => handleSortChange('yearly')}
+            >
+              <Text style={[styles.toggleText, sortBy === 'yearly' && styles.toggleTextActive]}>This Year</Text>
+            </Pressable>
           </View>
         </View>
         <ScrollView contentContainerStyle={styles.list}>
-          <Animated.View style={{ opacity: fadeAnim }}>
           {totals.length === 0 ? (
             <View style={styles.emptyState}>
               <IconSymbol name="list.number" color={colors.textSecondary} size={48} />
@@ -222,7 +185,6 @@ export default function LeaderboardScreen() {
               </View>
             ))
           )}
-          </Animated.View>
         </ScrollView>
       </View>
     </>
@@ -266,17 +228,8 @@ export default function LeaderboardScreen() {
   title: { fontSize: 28, fontWeight: '800', color: colors.card },
   subtitle: { fontSize: 14, color: 'rgba(255, 255, 255, 0.8)', marginTop: 4 },
   toggleRow: { flexDirection: 'row', gap: 10, backgroundColor: 'rgba(255, 255, 255, 0.15)', padding: 4, borderRadius: 12 },
-  toggleButtonWrapper: { flexDirection: 'row', position: 'relative', flex: 1, borderRadius: 10, overflow: 'hidden' },
-  toggleButtonBackground: {
-    position: 'absolute',
-    left: 4,
-    top: 4,
-    bottom: 4,
-    width: '48%',
-    backgroundColor: colors.card,
-    borderRadius: 10,
-  },
-  toggleButton: { flex: 1, padding: 10, alignItems: 'center', zIndex: 1 },
+  toggleButton: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 10 },
+  toggleButtonActive: { backgroundColor: colors.card },
   toggleText: { color: 'rgba(255, 255, 255, 0.7)', fontWeight: '700', fontSize: 13 },
   toggleTextActive: { color: colors.primary },
   list: { padding: 16, gap: 12, paddingTop: 20 },

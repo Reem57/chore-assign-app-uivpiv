@@ -224,6 +224,13 @@ export function useChoreData() {
     await choresService.updatePerson(id, { name, floor });
   };
 
+  const updatePersonPreferences = async (
+    id: string,
+    dayPreferences: { [dayOfWeek: number]: 'preferred' | 'available' | 'unavailable' }
+  ) => {
+    await choresService.updatePerson(id, { dayPreferences });
+  };
+
   const deletePerson = async (id: string) => {
     await choresService.deletePerson(id);
   };
@@ -310,6 +317,7 @@ export function useChoreData() {
     deleteChore,
     addPerson,
     updatePerson,
+    updatePersonPreferences,
     deletePerson,
     toggleChoreCompletion,
     canCompleteTask,

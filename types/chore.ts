@@ -17,6 +17,9 @@ export interface Person {
   weeklyPoints?: number;
   yearlyPoints?: number;
   floor?: string; // Optional: which floor the person lives on
+  dayPreferences?: {
+    [dayOfWeek: number]: 'preferred' | 'available' | 'unavailable';
+  }; // 0 = Sunday, 6 = Saturday
 }
 
 export interface Assignment {

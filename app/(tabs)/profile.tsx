@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Alert, TextInput } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useThemedStyles } from '@/styles/commonStyles';
@@ -8,15 +8,31 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { getWeekNumber } from '@/utils/choreAssignment';
 
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 export default function ProfileScreen() {
-  const { chores, people, assignments, getPersonPoints, getPersonForUser } = useChoreData();
+  const { chores, people, assignments, getPersonPoints, getPersonForUser, updatePersonPreferences } = useChoreData();
   const { currentUser, isAdmin, logout, setUserPassword } = useAuth();
   const router = useRouter();
   const { colors } = useThemedStyles();
   const styles = getStyles(colors);
+  
+  // Get current user's person data directly via personId
+  const userPerson = getPersonForUser() || null;
+  
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [dayPreferences, setDayPreferences] = useState<{ [key: number]: 'preferred' | 'available' | 'unavailable' }>(
+    {}
+  );
+
+  // Update day preferences when userPerson loads
+  useEffect(() => {
+    if (userPerson?.dayPreferences) {
+      setDayPreferences(userPerson.dayPreferences);
+    }
+  }, [userPerson?.id, userPerson?.dayPreferences]);
 
   const currentWeek = getWeekNumber(new Date());
   const currentYear = new Date().getFullYear();
@@ -28,8 +44,6 @@ export default function ProfileScreen() {
   const completedCount = currentAssignments.filter((a) => a.completed).length;
   const totalCount = currentAssignments.length;
 
-  // Get current user's person data directly via personId
-  const userPerson = getPersonForUser() || null;
   const { weeklyPoints, yearlyPoints } = userPerson ? getPersonPoints(userPerson.id) : { weeklyPoints: 0, yearlyPoints: 0 };
 
   const handleLogout = async () => {
@@ -102,6 +116,60 @@ export default function ProfileScreen() {
       setShowPasswordChange(false);
     } else {
       Alert.alert('Error', 'Failed to update password');
+    }
+  };
+
+  const handleDayPreferenceChange = async (day: number, preference: 'preferred' | 'available' | 'unavailable' | null) => {
+    if (!userPerson) return;
+
+    const newPreferences = { ...dayPreferences };
+    
+    if (preference === null) {
+      delete newPreferences[day];
+    } else {
+      newPreferences[day] = preference;
+    }
+
+    setDayPreferences(newPreferences);
+    
+    try {
+      await updatePersonPreferences(userPerson.id, newPreferences);
+      if (Platform.OS === 'web') {
+        // Silent update on web
+      } else {
+        Alert.alert('Success', 'Day preferences updated');
+      }
+    } catch (error) {
+      console.error('Failed to update preferences:', error);
+      Alert.alert('Error', 'Failed to update preferences');
+      // Revert on error
+      setDayPreferences(userPerson?.dayPreferences || {});
+    }
+  };
+
+  const getPreferenceColor = (preference: 'preferred' | 'available' | 'unavailable' | undefined) => {
+    switch (preference) {
+      case 'preferred':
+        return colors.success;
+      case 'available':
+        return colors.primary;
+      case 'unavailable':
+        return colors.danger;
+      default:
+        return colors.accent;
+    }
+  };
+
+  const getPreferenceLabel = (preference: 'preferred' | 'available' | 'unavailable' | undefined) => {
+    switch (preference) {
+      case 'preferred':
+        return '✓ Preferred';
+      case 'available':
+        return '○ Available';
+      case 'unavailable':
+        return '✗ Unavailable';
+      default:
+        return 'No Preference';
     }
   };
 
@@ -243,6 +311,110 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Day Preferences */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Day Preferences</Text>
+          <Text style={styles.sectionDescription}>
+            Set your availability for each day. The system will try to assign chores on your preferred days when possible.
+          </Text>
+          
+          <View style={styles.infoCard}>
+            {DAYS_OF_WEEK.map((day, index) => (
+              <React.Fragment key={index}>
+                {index > 0 && <View style={styles.divider} />}
+                <View style={styles.dayPreferenceRow}>
+                  <Text style={styles.dayLabel}>{day}</Text>
+                  <View style={styles.preferenceButtons}>
+                    <Pressable
+                      style={[
+                        styles.preferenceButton,
+                        { borderColor: colors.success },
+                        dayPreferences[index] === 'preferred' && { backgroundColor: colors.success },
+                      ]}
+                      onPress={() => 
+                        handleDayPreferenceChange(
+                          index, 
+                          dayPreferences[index] === 'preferred' ? null : 'preferred'
+                        )
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.preferenceButtonText,
+                          { color: dayPreferences[index] === 'preferred' ? colors.card : colors.textSecondary },
+                        ]}
+                      >
+                        ✓
+                      </Text>
+                    </Pressable>
+                    
+                    <Pressable
+                      style={[
+                        styles.preferenceButton,
+                        { borderColor: colors.primary },
+                        dayPreferences[index] === 'available' && { backgroundColor: colors.primary },
+                      ]}
+                      onPress={() => 
+                        handleDayPreferenceChange(
+                          index, 
+                          dayPreferences[index] === 'available' ? null : 'available'
+                        )
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.preferenceButtonText,
+                          { color: dayPreferences[index] === 'available' ? colors.card : colors.textSecondary },
+                        ]}
+                      >
+                        ○
+                      </Text>
+                    </Pressable>
+                    
+                    <Pressable
+                      style={[
+                        styles.preferenceButton,
+                        { borderColor: colors.danger },
+                        dayPreferences[index] === 'unavailable' && { backgroundColor: colors.danger },
+                      ]}
+                      onPress={() => 
+                        handleDayPreferenceChange(
+                          index, 
+                          dayPreferences[index] === 'unavailable' ? null : 'unavailable'
+                        )
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.preferenceButtonText,
+                          { color: dayPreferences[index] === 'unavailable' ? colors.card : colors.textSecondary },
+                        ]}
+                      >
+                        ✗
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </React.Fragment>
+            ))}
+          </View>
+          
+          <View style={styles.legendContainer}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+              <Text style={styles.legendText}>Preferred</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+              <Text style={styles.legendText}>Available</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+              <Text style={styles.legendText}>Unavailable</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Logout Button */}
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <IconSymbol name="rectangle.portrait.and.arrow.right" color={colors.danger} size={20} />
@@ -378,6 +550,12 @@ export default function ProfileScreen() {
     color: colors.text,
     marginBottom: 12,
   },
+  sectionDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
   infoCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -460,6 +638,55 @@ export default function ProfileScreen() {
     fontSize: 16,
     fontWeight: '700',
     color: colors.danger,
+  },
+  dayPreferenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  dayLabel: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  preferenceButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  preferenceButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+  },
+  preferenceButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+    paddingHorizontal: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });
   }

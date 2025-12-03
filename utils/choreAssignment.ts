@@ -43,7 +43,50 @@ export function assignChores(
     taskCount[p.id] = 0;
   });
 
+  const today = now.getDay(); // 0=Sun, 6=Sat
+  const remainingDaysInWeek = 7 - today;
+
+  // Build a list of all chore occurrences with their ideal days
+  const choreOccurrences: Array<{
+    chore: Chore;
+    dayOfWeek: number;
+    points: number;
+  }> = [];
+
   chores.forEach((chore) => {
+    const totalOccurrences = chore.timesPerWeek || 1;
+    const chorePoints = chore.points || 0;
+    
+    // Calculate how many occurrences should happen in the remaining days
+    const remainingOccurrences = Math.round((totalOccurrences / 7) * remainingDaysInWeek);
+
+    if (remainingOccurrences <= 0) {
+      return;
+    }
+
+    for (let i = 0; i < remainingOccurrences; i++) {
+      // Distribute chores fairly across the remaining days
+      const dayOffset = remainingOccurrences > 1 
+        ? Math.floor((i * (remainingDaysInWeek - 1)) / (remainingOccurrences - 1))
+        : Math.floor(Math.random() * remainingDaysInWeek); // Random day if only 1 occurrence
+      const dayOfWeek = Math.min(today + dayOffset, 6);
+      
+      choreOccurrences.push({
+        chore,
+        dayOfWeek,
+        points: chorePoints,
+      });
+    }
+  });
+
+  // Shuffle to avoid always assigning in the same order
+  choreOccurrences.sort(() => Math.random() - 0.5);
+
+  choreOccurrences.forEach((occurrence) => {
+    const chore = occurrence.chore;
+    const dayOfWeek = occurrence.dayOfWeek;
+    const chorePoints = occurrence.points;
+
     // If chore is assigned to a specific floor, only assign to people on that floor
     const eligiblePeople = chore.floor
       ? people.filter((p) => p.floor === chore.floor)
@@ -54,61 +97,51 @@ export function assignChores(
       return;
     }
 
-    const chorePoints = chore.points || 0;
-
-    // Spread chore occurrences across the week: compute dayOfWeek for each occurrence
-    // days are 0 (Sunday) .. 6 (Saturday)
-    const occurrences = chore.timesPerWeek || 1;
-    for (let i = 0; i < occurrences; i++) {
-      // Distribute days fairly across the week
-      const dayOfWeek = Math.floor((i * 7) / occurrences) % 7;
-
-      // Score each person based on task count, points, and day preferences
-      // Lower score = better candidate
-      const scoredPeople = eligiblePeople.map(p => {
-        // Primary factor: task count (most important for equal distribution)
-        // Secondary factor: points
-        // We weight task count heavily to ensure equal task distribution
-        let score = (taskCount[p.id] || 0) * 100 + (pointsCount[p.id] || 0);
-        
-        // Factor in day preferences (smaller impact to maintain fairness)
-        const preference = p.dayPreferences?.[dayOfWeek];
-        if (preference === 'unavailable') {
-          // Strong penalty - try to avoid but don't break fairness
-          score += chorePoints * 2; 
-        } else if (preference === 'preferred') {
-          // Small bonus for preferred days
-          score -= chorePoints * 0.3;
-        } else if (preference === 'available') {
-          // Very small bonus for available
-          score -= chorePoints * 0.1;
-        }
-        // No preference = neutral (score += 0)
-        
-        return { person: p, score };
-      });
-
-      // Find person with lowest score (best match)
-      const bestMatch = scoredPeople.reduce((min, current) => 
-        current.score < min.score ? current : min
-      );
+    // Score each person based on task count, points, and day preferences
+    // Lower score = better candidate
+    const scoredPeople = eligiblePeople.map(p => {
+      // Primary factor: task count (most important for equal distribution)
+      // Secondary factor: points
+      // We weight task count heavily to ensure equal task distribution
+      let score = (taskCount[p.id] || 0) * 100 + (pointsCount[p.id] || 0);
       
-      const person = bestMatch.person;
-      pointsCount[person.id] += chorePoints;
-      taskCount[person.id] += 1;
+      // Factor in day preferences (smaller impact to maintain fairness)
+      const preference = p.dayPreferences?.[dayOfWeek];
+      if (preference === 'unavailable') {
+        // Strong penalty - try to avoid but don't break fairness
+        score += chorePoints * 2; 
+      } else if (preference === 'preferred') {
+        // Small bonus for preferred days
+        score -= chorePoints * 0.3;
+      } else if (preference === 'available') {
+        // Very small bonus for available
+        score -= chorePoints * 0.1;
+      }
+      // No preference = neutral (score += 0)
+      
+      return { person: p, score };
+    });
 
-      newAssignments.push({
-        id: `${chore.id}-${person.id}-${currentWeek}-${i}-${Date.now()}`,
-        choreId: chore.id,
-        personId: person.id,
-        weekNumber: currentWeek,
-        year: currentYear,
-        completed: false,
-        assignedAt: Date.now(),
-        dayOfWeek,
-        points: chorePoints,
-      });
-    }
+    // Find person with lowest score (best match)
+    const bestMatch = scoredPeople.reduce((min, current) => 
+      current.score < min.score ? current : min
+    );
+    
+    const person = bestMatch.person;
+    pointsCount[person.id] += chorePoints;
+    taskCount[person.id] += 1;
+
+    newAssignments.push({
+      id: `${chore.id}-${person.id}-${currentWeek}-${Date.now()}-${Math.random()}`,
+      choreId: chore.id,
+      personId: person.id,
+      weekNumber: currentWeek,
+      year: currentYear,
+      completed: false,
+      assignedAt: Date.now(),
+      dayOfWeek,
+      points: chorePoints,
+    });
   });
 
   console.log(`Created ${newAssignments.length} new assignments for week ${currentWeek}`);

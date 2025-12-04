@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Stack } from 'expo-router';
-import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl } from 'react-native';
+import { ScrollView, StyleSheet, View, Text, Pressable, Platform, Alert, RefreshControl, Modal } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { useThemedStyles } from '@/styles/commonStyles';
@@ -12,6 +12,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { chores, people, assignments, loading, toggleChoreCompletion, canCompleteTask, getPersonPoints, addRating, hasLocallyRated, refreshData, getPersonForUser } = useChoreData();
   const [refreshing, setRefreshing] = useState(false);
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [selectedChoreDetails, setSelectedChoreDetails] = useState<{ name: string; description: string } | null>(null);
   const { colors } = useThemedStyles();
 
   const onRefresh = async () => {
@@ -203,7 +205,9 @@ export default function HomeScreen() {
       color: colors.primary,
       fontWeight: '600',
       marginTop: 4,
-    },
+      cursor: Platform.OS === 'web' ? 'pointer' : undefined,
+      userSelect: Platform.OS === 'web' ? 'none' : undefined,
+    } as any,
     quickActions: {
       flexDirection: 'row',
       gap: 12,
@@ -392,6 +396,56 @@ export default function HomeScreen() {
       fontWeight: '600',
       color: colors.primary,
     },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 24,
+      width: '100%',
+      maxWidth: 500,
+      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+      elevation: 5,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.text,
+      flex: 1,
+    },
+    modalCloseButton: {
+      padding: 4,
+    },
+    modalBody: {
+      marginBottom: 20,
+    },
+    modalDescription: {
+      fontSize: 16,
+      color: colors.text,
+      lineHeight: 24,
+    },
+    modalButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      padding: 14,
+      alignItems: 'center',
+    },
+    modalButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.card,
+    },
   });
 
 
@@ -570,7 +624,11 @@ export default function HomeScreen() {
                                 isLocked && styles.choreItemLocked,
                                 isPastDue && styles.choreItemPastDue,
                               ]}
-                              onPress={() => {
+                              onPress={(e) => {
+                                // Check if the target is the Details button
+                                if (Platform.OS === 'web' && (e.target as any)?.innerText === 'Details') {
+                                  return;
+                                }
                                 if (isLocked) {
                                   if (isFuture) {
                                     Alert.alert(
@@ -620,10 +678,22 @@ export default function HomeScreen() {
                                   </Text>
                                   {/* Details button to view description */}
                                   <Pressable
-                                    onPress={() => Alert.alert(choreName, (chore?.description) || 'No description provided')}
-                                    style={{ paddingHorizontal: 8 }}
+                                    onPress={(e) => {
+                                      console.log('Details button clicked!', choreName);
+                                      if (Platform.OS === 'web') {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                      }
+                                      setSelectedChoreDetails({
+                                        name: choreName,
+                                        description: (chore?.description) || 'No description provided'
+                                      });
+                                      setDetailsModalVisible(true);
+                                    }}
+                                    style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: Platform.OS === 'web' ? 'transparent' : undefined }}
+                                    hitSlop={8}
                                   >
-                                    <Text style={styles.detailsButtonText}>Details</Text>
+                                    <Text style={styles.detailsButtonText} pointerEvents="none">Details</Text>
                                   </Pressable>
                                   {typeof assignment.dayOfWeek === 'number' && (
                                     <Text style={styles.choreDay}>
@@ -674,6 +744,44 @@ export default function HomeScreen() {
             </>
           )}
         </ScrollView>
+
+        {/* Details Modal */}
+        <Modal
+          visible={detailsModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setDetailsModalVisible(false)}
+        >
+          <Pressable 
+            style={styles.modalOverlay}
+            onPress={() => setDetailsModalVisible(false)}
+          >
+            <Pressable 
+              style={styles.modalContent}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{selectedChoreDetails?.name}</Text>
+                <Pressable
+                  onPress={() => setDetailsModalVisible(false)}
+                  style={styles.modalCloseButton}
+                  hitSlop={8}
+                >
+                  <IconSymbol name="xmark" color={colors.textSecondary} size={20} />
+                </Pressable>
+              </View>
+              <View style={styles.modalBody}>
+                <Text style={styles.modalDescription}>{selectedChoreDetails?.description}</Text>
+              </View>
+              <Pressable
+                style={styles.modalButton}
+                onPress={() => setDetailsModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Close</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </View>
     </>
   );

@@ -2,8 +2,14 @@
 import { Chore, Person, Assignment } from '@/types/chore';
 
 export function getWeekNumber(date: Date): number {
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+  // Adjust date to make Monday the start of the week
+  const adjustedDate = new Date(date);
+  const day = adjustedDate.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // If Sunday, go back 6 days; otherwise go to Monday
+  adjustedDate.setDate(adjustedDate.getDate() + diff);
+  
+  const firstDayOfYear = new Date(adjustedDate.getFullYear(), 0, 1);
+  const pastDaysOfYear = (adjustedDate.getTime() - firstDayOfYear.getTime()) / 86400000;
   return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 }
 

@@ -29,12 +29,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   statsCard: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.accent,
   },
   personName: {
     fontSize: 20,
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.accent,
   },
   choresTitle: {
     fontSize: 14,
@@ -150,7 +150,7 @@ export default function AdminScreen() {
 
   // Redirect if not admin
   if (!isAdmin()) {
-    router.replace('/(tabs)/(home)/');
+    router.replace('/(tabs)/(home)');
     return null;
   }
 
@@ -215,9 +215,9 @@ export default function AdminScreen() {
                           {assignment.completed ? 'Completed' : 'Pending'}
                         </Text>
                       </View>
-                      {assignment.startTime && assignment.endTime && (
+                      {assignment.completedAt && (
                         <Text style={styles.timeSlot}>
-                          {formatDate(assignment.startTime)} - {formatDate(assignment.endTime)}
+                          Completed: {formatDate(assignment.completedAt)}
                         </Text>
                       )}
                     </View>

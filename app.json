@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Natively",
-    "slug": "Natively",
+    "name": "Chorely",
+    "slug": "chorely",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.Natively",
+      "bundleIdentifier": "com.anonymous.chorely",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,19 +25,18 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively"
+      "package": "com.anonymous.chorely"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "static"
     },
     "plugins": [
       "expo-font",
       "expo-router",
       "expo-web-browser"
     ],
-    "scheme": "natively",
+    "scheme": "chorely",
     "experiments": {
       "typedRoutes": true
     },

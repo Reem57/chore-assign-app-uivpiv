@@ -1,11 +1,14 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Chore, Person, Assignment, PointsData } from '@/types/chore';
 import { assignChores, getWeekNumber } from '@/utils/choreAssignment';
 import { choresService } from '@/services/chores.service';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth } from '@/services/firebase.config';
 import { onAuthStateChanged } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LAST_WEEK_CHECK_KEY = '@chorely_last_week_check';
 
 export function useChoreData() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -16,6 +19,7 @@ export function useChoreData() {
   const [pointsData, setPointsData] = useState<PointsData[]>([]);
   const [localRatedAssignments, setLocalRatedAssignments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const weekCheckInProgress = useRef(false);
 
   // Track Firebase auth state (distinct from local admin mode)
   useEffect(() => {
@@ -71,6 +75,90 @@ export function useChoreData() {
       }
     }
   }, [chores, people, loading]);
+
+  // Automatic weekly reassignment - checks on app start and when data changes
+  useEffect(() => {
+    if (!loading && chores.length > 0 && people.length > 0 && !weekCheckInProgress.current) {
+      checkAndReassignForNewWeek();
+    }
+  }, [loading, chores, people, assignments]);
+
+  const checkAndReassignForNewWeek = async () => {
+    if (weekCheckInProgress.current) return;
+    
+    try {
+      weekCheckInProgress.current = true;
+      
+      const now = new Date();
+      const currentWeek = getWeekNumber(now);
+      const currentYear = now.getFullYear();
+      const currentDayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      
+      // Calculate the most recent Monday at midnight
+      const mostRecentMonday = new Date(now);
+      const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // If Sunday, 6 days back; otherwise days since Monday
+      mostRecentMonday.setDate(mostRecentMonday.getDate() - daysFromMonday);
+      mostRecentMonday.setHours(0, 0, 0, 0); // Set to midnight
+      
+      // Get last reassignment timestamp from storage
+      const lastCheckData = await AsyncStorage.getItem(LAST_WEEK_CHECK_KEY);
+      let shouldReassign = false;
+      
+      if (lastCheckData) {
+        const { week, year, timestamp } = JSON.parse(lastCheckData);
+        const lastReassignmentDate = new Date(timestamp);
+        
+        // Check if we're past the most recent Monday midnight AND haven't reassigned since then
+        if (now >= mostRecentMonday && lastReassignmentDate < mostRecentMonday) {
+          shouldReassign = true;
+          console.log(`Time to reassign! Last reassignment: ${lastReassignmentDate.toLocaleString()}, Most recent Monday midnight: ${mostRecentMonday.toLocaleString()}`);
+        }
+      } else {
+        // First time running, check if assignments exist for current week
+        const currentWeekAssignments = assignments.filter(
+          a => a.weekNumber === currentWeek && a.year === currentYear
+        );
+        if (currentWeekAssignments.length === 0) {
+          shouldReassign = true;
+          console.log('First run or no assignments for current week, creating assignments');
+        }
+      }
+      
+      if (shouldReassign) {
+        console.log('Automatically reassigning chores for new week...');
+        await reassignChoresInternal();
+        
+        // Update last checked week with current timestamp
+        await AsyncStorage.setItem(
+          LAST_WEEK_CHECK_KEY,
+          JSON.stringify({ week: currentWeek, year: currentYear, timestamp: now.getTime() })
+        );
+      }
+    } catch (error) {
+      console.error('Error checking/reassigning for new week:', error);
+    } finally {
+      weekCheckInProgress.current = false;
+    }
+  };
+
+  const reassignChoresInternal = async () => {
+    const now = new Date();
+    const currentWeek = getWeekNumber(now);
+    const currentYear = now.getFullYear();
+    
+    // Delete current week assignments from Firebase
+    await choresService.deleteCurrentWeekAssignments(currentWeek, currentYear);
+    
+    // Create new assignments
+    const newCurrentWeekAssignments = assignChores(chores, people, []);
+    
+    // Save new assignments to Firebase
+    await choresService.saveAssignments(newCurrentWeekAssignments);
+    
+    console.log('Reassigning chores - new assignments:', newCurrentWeekAssignments.length);
+    
+    return newCurrentWeekAssignments.length;
+  };
 
   // Update points when assignments change
   useEffect(() => {
@@ -282,22 +370,7 @@ export function useChoreData() {
   };
 
   const reassignChores = async () => {
-    const now = new Date();
-    const currentWeek = getWeekNumber(now);
-    const currentYear = now.getFullYear();
-    
-    // Delete current week assignments from Firebase
-    await choresService.deleteCurrentWeekAssignments(currentWeek, currentYear);
-    
-    // Create new assignments
-    const newCurrentWeekAssignments = assignChores(chores, people, []);
-    
-    // Save new assignments to Firebase
-    await choresService.saveAssignments(newCurrentWeekAssignments);
-    
-    console.log('Reassigning chores - new assignments:', newCurrentWeekAssignments.length);
-    
-    return newCurrentWeekAssignments.length;
+    return await reassignChoresInternal();
   };
 
   const refreshData = async () => {

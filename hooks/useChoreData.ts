@@ -76,12 +76,12 @@ export function useChoreData() {
     }
   }, [chores, people, loading]);
 
-  // Automatic weekly reassignment - checks on app start and when data changes
+  // Automatic weekly reassignment - checks on app start and when data loads
   useEffect(() => {
     if (!loading && chores.length > 0 && people.length > 0 && !weekCheckInProgress.current) {
       checkAndReassignForNewWeek();
     }
-  }, [loading, chores, people, assignments]);
+  }, [loading, chores.length, people.length]);
 
   const checkAndReassignForNewWeek = async () => {
     if (weekCheckInProgress.current) return;

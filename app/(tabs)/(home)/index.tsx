@@ -38,27 +38,33 @@ export default function HomeScreen() {
     );
   }, [assignments, currentWeek, currentYear]);
 
-  // Filter assignments for current user if not admin
-  const userAssignments = useMemo(() => {
-    if (isAdmin()) return currentAssignments;
-    const person = getPersonForUser();
-    if (!person) return [];
-    return currentAssignments.filter(a => a.personId === person.id);
-  }, [currentAssignments, currentUser, people, isAdmin, getPersonForUser]);
+  // Get current user person
+  const userPerson = getPersonForUser();
 
-  // Group assignments by person
+  // For non-admin: separate user's chores from others' chores
+  const { userOwnAssignments, othersAssignments } = useMemo(() => {
+    if (isAdmin()) {
+      return { userOwnAssignments: [], othersAssignments: currentAssignments };
+    }
+    
+    if (!userPerson) {
+      return { userOwnAssignments: [], othersAssignments: currentAssignments };
+    }
+    
+    const own = currentAssignments.filter(a => a.personId === userPerson.id);
+    const others = currentAssignments.filter(a => a.personId !== userPerson.id);
+    
+    return { userOwnAssignments: own, othersAssignments: others };
+  }, [currentAssignments, userPerson, isAdmin]);
+
+  // Group ALL assignments by person (for display)
   const assignmentsByPerson = useMemo(() => {
     const grouped: { [key: string]: typeof currentAssignments } = {};
-    if (isAdmin()) {
-      people.forEach(p => {
-        grouped[p.id] = currentAssignments.filter(a => a.personId === p.id);
-      });
-    } else {
-      const person = getPersonForUser();
-      if (person) grouped[person.id] = userAssignments;
-    }
+    people.forEach(p => {
+      grouped[p.id] = currentAssignments.filter(a => a.personId === p.id);
+    });
     return grouped;
-  }, [currentAssignments, people, isAdmin, userAssignments, getPersonForUser]);
+  }, [currentAssignments, people]);
 
   const getChoreById = (choreId: string) => {
     return chores.find((c) => c.id === choreId);
@@ -68,15 +74,12 @@ export default function HomeScreen() {
     return people.find((p) => p.id === personId);
   };
 
-  const completedCount = userAssignments.filter((a) => a.completed).length;
-  const totalCount = userAssignments.length;
+  const completedCount = userOwnAssignments.filter((a) => a.completed).length;
+  const totalCount = userOwnAssignments.length;
   const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  // Non-admin user stats
-  const userPerson = getPersonForUser();
-
   // Linking removed.
-  const remainingTasks = userAssignments.filter((a) => !a.completed).length;
+  const remainingTasks = userOwnAssignments.filter((a) => !a.completed).length;
   const DEFAULT_MINUTES_PER_TASK = 15; // assumption: average task takes 15 minutes
   const estimatedMinutesRemaining = remainingTasks * DEFAULT_MINUTES_PER_TASK;
   const userPoints = userPerson ? getPersonPoints(userPerson.id) : { weeklyPoints: 0, yearlyPoints: 0 };
@@ -256,6 +259,11 @@ export default function HomeScreen() {
       boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
       elevation: 3,
     },
+    currentUserCard: {
+      borderWidth: 2,
+      borderColor: colors.primary,
+      backgroundColor: colors.highlight,
+    },
     personHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -335,6 +343,9 @@ export default function HomeScreen() {
       backgroundColor: '#ffebee',
       borderColor: colors.danger,
     },
+    choreItemReadOnly: {
+      opacity: 0.7,
+    },
     choreItemContent: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -352,6 +363,10 @@ export default function HomeScreen() {
     checkboxChecked: {
       backgroundColor: colors.success,
       borderColor: colors.success,
+    },
+    checkboxReadOnly: {
+      borderColor: colors.textSecondary,
+      opacity: 0.5,
     },
     choreTextContainer: {
       flex: 1,
@@ -570,8 +585,139 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {/* Assignments by Person */}
-              {Object.keys(assignmentsByPerson).map((personId) => {
+              {/* Show user's own chores first (for non-admin) */}
+              {!isAdmin() && userPerson && userOwnAssignments.length > 0 && (
+                <View style={[styles.personCard, styles.currentUserCard]}>
+                  <View style={styles.personHeader}>
+                    <View style={styles.personInfo}>
+                      <View style={styles.personAvatar}>
+                        <IconSymbol name="person.circle.fill" color={colors.primary} size={40} />
+                      </View>
+                      <View style={styles.personTextContainer}>
+                        <Text style={styles.personName}>{userPerson.name} (You)</Text>
+                        <Text style={styles.personStats}>
+                          {completedCount}/{totalCount} completed
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.pointsContainer}>
+                      <View style={styles.pointsBadge}>
+                        <IconSymbol name="star.fill" color={colors.warning} size={16} />
+                        <Text style={styles.pointsText}>{userPoints.weeklyPoints}</Text>
+                      </View>
+                      <Text style={styles.pointsLabel}>This Week</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.choresList}>
+                    {userOwnAssignments.map((assignment) => {
+                      const chore = getChoreById(assignment.choreId);
+                      const choreName = chore?.name || `(Unknown chore ${assignment.choreId})`;
+                      const chorePoints = chore?.points ?? 10;
+                      const taskStatus = canCompleteTask(assignment);
+                      const isLocked = !taskStatus.canComplete && !assignment.completed;
+                      const isPastDue = taskStatus.reason === 'past' && !assignment.completed;
+                      const isFuture = taskStatus.reason === 'future';
+
+                      return (
+                        <Pressable
+                          key={assignment.id}
+                          style={[
+                            styles.choreItem,
+                            assignment.completed && styles.choreItemCompleted,
+                            isLocked && styles.choreItemLocked,
+                            isPastDue && styles.choreItemPastDue,
+                          ]}
+                          onPress={(e) => {
+                            if (Platform.OS === 'web' && (e.target as any)?.innerText === 'Details') {
+                              return;
+                            }
+                            if (isLocked) {
+                              if (isFuture) {
+                                Alert.alert(
+                                  'Not Available Yet',
+                                  `This task is scheduled for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][assignment.dayOfWeek!]}. You can only complete it on that day.`
+                                );
+                              } else if (isPastDue) {
+                                Alert.alert(
+                                  'Task Overdue',
+                                  `This task was due on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][assignment.dayOfWeek!]}. It can no longer be completed.`
+                                );
+                              }
+                              return;
+                            }
+                            toggleChoreCompletion(assignment.id);
+                          }}
+                          disabled={isLocked}
+                        >
+                          <View style={styles.choreItemContent}>
+                            <View
+                              style={[
+                                styles.checkbox,
+                                assignment.completed && styles.checkboxChecked,
+                              ]}
+                            >
+                              {assignment.completed ? (
+                                <IconSymbol name="checkmark" color={colors.card} size={16} />
+                              ) : isLocked && (
+                                <IconSymbol 
+                                  name={isPastDue ? "xmark" : "lock.fill"} 
+                                  color={isPastDue ? colors.danger : colors.textSecondary} 
+                                  size={14} 
+                                />
+                              )}
+                            </View>
+                            <View style={styles.choreTextContainer}>
+                              <Text
+                                style={[
+                                  styles.choreItemText,
+                                  assignment.completed && styles.choreItemTextCompleted,
+                                  isLocked && { color: colors.textSecondary },
+                                ]}
+                              >
+                                {choreName}
+                                {isFuture && ' 🔒'}
+                                {isPastDue && ' ⚠️'}
+                              </Text>
+                              <Pressable
+                                onPress={(e) => {
+                                  if (Platform.OS === 'web') {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                  }
+                                  setSelectedChoreDetails({
+                                    name: choreName,
+                                    description: (chore?.description) || 'No description provided'
+                                  });
+                                  setDetailsModalVisible(true);
+                                }}
+                                style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: Platform.OS === 'web' ? 'transparent' : undefined }}
+                                hitSlop={8}
+                              >
+                                <Text style={styles.detailsButtonText} pointerEvents="none">Details</Text>
+                              </Pressable>
+                              {typeof assignment.dayOfWeek === 'number' && (
+                                <Text style={styles.choreDay}>
+                                  {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][assignment.dayOfWeek]}
+                                </Text>
+                              )}
+                              <View style={styles.chorePointsBadge}>
+                                <IconSymbol name="star.fill" color={colors.warning} size={12} />
+                                <Text style={styles.chorePointsText}>+{chorePoints}</Text>
+                              </View>
+                            </View>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* Show all other people's chores */}
+              {Object.keys(assignmentsByPerson)
+                .filter(personId => isAdmin() || personId !== userPerson?.id) // Admin sees all, user sees others
+                .map((personId) => {
                 const person = getPersonById(personId);
                 if (!person) return null;
 
@@ -614,6 +760,7 @@ export default function HomeScreen() {
                           const isLocked = !taskStatus.canComplete && !assignment.completed;
                           const isPastDue = taskStatus.reason === 'past' && !assignment.completed;
                           const isFuture = taskStatus.reason === 'future';
+                          const canUserComplete = isAdmin() || (userPerson && person.id === userPerson.id);
 
                           return (
                             <Pressable
@@ -623,11 +770,14 @@ export default function HomeScreen() {
                                 assignment.completed && styles.choreItemCompleted,
                                 isLocked && styles.choreItemLocked,
                                 isPastDue && styles.choreItemPastDue,
+                                !canUserComplete && styles.choreItemReadOnly,
                               ]}
                               onPress={(e) => {
-                                // Check if the target is the Details button
                                 if (Platform.OS === 'web' && (e.target as any)?.innerText === 'Details') {
                                   return;
+                                }
+                                if (!canUserComplete) {
+                                  return; // Can't complete others' chores
                                 }
                                 if (isLocked) {
                                   if (isFuture) {
@@ -645,13 +795,14 @@ export default function HomeScreen() {
                                 }
                                 toggleChoreCompletion(assignment.id);
                               }}
-                              disabled={isLocked}
+                              disabled={isLocked || !canUserComplete}
                             >
                               <View style={styles.choreItemContent}>
                                 <View
                                   style={[
                                     styles.checkbox,
                                     assignment.completed && styles.checkboxChecked,
+                                    !canUserComplete && styles.checkboxReadOnly,
                                   ]}
                                 >
                                   {assignment.completed ? (
@@ -670,16 +821,15 @@ export default function HomeScreen() {
                                       styles.choreItemText,
                                       assignment.completed && styles.choreItemTextCompleted,
                                       isLocked && { color: colors.textSecondary },
+                                      !canUserComplete && { color: colors.textSecondary },
                                     ]}
                                   >
                                     {choreName}
                                     {isFuture && ' 🔒'}
                                     {isPastDue && ' ⚠️'}
                                   </Text>
-                                  {/* Details button to view description */}
                                   <Pressable
                                     onPress={(e) => {
-                                      console.log('Details button clicked!', choreName);
                                       if (Platform.OS === 'web') {
                                         e.stopPropagation();
                                         e.preventDefault();
@@ -700,37 +850,37 @@ export default function HomeScreen() {
                                       {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][assignment.dayOfWeek]}
                                     </Text>
                                   )}
-                                            <View style={styles.chorePointsBadge}>
+                                  <View style={styles.chorePointsBadge}>
                                     <IconSymbol name="star.fill" color={colors.warning} size={12} />
                                     <Text style={styles.chorePointsText}>+{chorePoints}</Text>
                                   </View>
-                                            {/* Rating button for other users to anonymously rate this completed assignment */}
-                                            {assignment.completed && userPerson && userPerson.id !== person.id && !hasLocallyRated(assignment.id) && (
-                                              <Pressable
-                                                style={{ paddingHorizontal: 8 }}
-                                                onPress={() => {
-                                                  // present rating choices 1-5
-                                                  Alert.alert(
-                                                    'Rate this chore',
-                                                    `How well was "${choreName}" done? (anonymous)` ,
-                                                    [
-                                                      { text: '1', onPress: () => { addRating(assignment.id, 1); Alert.alert('Thanks', 'Your rating was recorded'); } },
-                                                      { text: '2', onPress: () => { addRating(assignment.id, 2); Alert.alert('Thanks', 'Your rating was recorded'); } },
-                                                      { text: '3', onPress: () => { addRating(assignment.id, 3); Alert.alert('Thanks', 'Your rating was recorded'); } },
-                                                      { text: '4', onPress: () => { addRating(assignment.id, 4); Alert.alert('Thanks', 'Your rating was recorded'); } },
-                                                      { text: '5', onPress: () => { addRating(assignment.id, 5); Alert.alert('Thanks', 'Your rating was recorded'); } },
-                                                      { text: 'Cancel', style: 'cancel' },
-                                                    ],
-                                                    { cancelable: true }
-                                                  );
-                                                }}
-                                              >
-                                                <Text style={[styles.detailsButtonText, { color: colors.danger }]}>Rate</Text>
-                                              </Pressable>
-                                            )}
-                                            {assignment.completed && hasLocallyRated(assignment.id) && (
-                                              <Text style={[styles.detailsButtonText, { color: colors.textSecondary }]}>Rated</Text>
-                                            )}
+                                  {/* Rating button for other users to anonymously rate this completed assignment */}
+                                  {assignment.completed && userPerson && userPerson.id !== person.id && !hasLocallyRated(assignment.id) && (
+                                    <Pressable
+                                      style={{ paddingHorizontal: 8 }}
+                                      onPress={() => {
+                                        // present rating choices 1-5
+                                        Alert.alert(
+                                          'Rate this chore',
+                                          `How well was "${choreName}" done? (anonymous)` ,
+                                          [
+                                            { text: '1', onPress: () => { addRating(assignment.id, 1); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                            { text: '2', onPress: () => { addRating(assignment.id, 2); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                            { text: '3', onPress: () => { addRating(assignment.id, 3); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                            { text: '4', onPress: () => { addRating(assignment.id, 4); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                            { text: '5', onPress: () => { addRating(assignment.id, 5); Alert.alert('Thanks', 'Your rating was recorded'); } },
+                                            { text: 'Cancel', style: 'cancel' },
+                                          ],
+                                          { cancelable: true }
+                                        );
+                                      }}
+                                    >
+                                      <Text style={[styles.detailsButtonText, { color: colors.danger }]}>Rate</Text>
+                                    </Pressable>
+                                  )}
+                                  {assignment.completed && hasLocallyRated(assignment.id) && (
+                                    <Text style={[styles.detailsButtonText, { color: colors.textSecondary }]}>Rated</Text>
+                                  )}
                                 </View>
                               </View>
                             </Pressable>
